@@ -85,7 +85,6 @@ def test_add_to_photos_album_imports_before_assigning_album(monkeypatch) -> None
         log=log_messages.append,
     )
 
-    assert log_messages == ["trying to add /tmp/output.png to Album"]
     assert events == [
         ("album_lookup", "Album"),
         ("import", ["/tmp/output.png"], album, True),

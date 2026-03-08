@@ -17,14 +17,9 @@ if TYPE_CHECKING:
 def _add_to_photos_album(
     output_path: str,
     album_name: str,
-    *,
-    log: Callable[[str], None] | None = None,
 ) -> None:
     """Import a file into macOS Photos and add it to the named album."""
     import subprocess  # noqa: PLC0415
-
-    if log is not None:
-        log(f"trying to add {output_path} to {album_name}")
 
     safe_album = album_name.replace("\\", "\\\\").replace('"', '\\"')
     safe_path = output_path.replace("\\", "\\\\").replace('"', '\\"')
@@ -147,9 +142,7 @@ def main() -> None:
     )
     if destination_album:
         try:
-            _add_to_photos_album(output_path, str(destination_album), log=log)
+            _add_to_photos_album(output_path, str(destination_album))
             log(f"Added to Photos album: {destination_album}")
         except Exception as e:  # noqa: BLE001
             err(f"Failed to add to Photos album {destination_album!r}: {e}")
-    if not args.silent:
-        print(output_path)

@@ -73,7 +73,7 @@ def _run_generation(  # noqa: PLR0913
         err(f"Image generation returned unexpected result: {result!r}")
         sys.exit(1)
 
-    output_path = result.image_path
+    output_path = str(output_dir / result.image_path)
     log(f"Image written to: {output_path}")
 
     if not pathlib.Path(output_path).exists():
