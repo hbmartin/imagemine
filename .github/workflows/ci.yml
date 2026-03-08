@@ -39,8 +39,8 @@ jobs:
 
       - name: Run Black check
         run: |
-          uv run black --check .
+          uv run black --check src
 
       - name: Run Ruff check
         run: |
-          uv run ruff check .
+          uv run ruff check src

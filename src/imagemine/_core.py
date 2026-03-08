@@ -33,7 +33,7 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
 
 def insert_run(conn: sqlite3.Connection, input_file_path: str) -> int:
     cur = conn.execute(
-        "INSERT INTO runs (input_file_path) VALUES (?)", (input_file_path,)
+        "INSERT INTO runs (input_file_path) VALUES (?)", (input_file_path,),
     )
     conn.commit()
     assert cur.lastrowid is not None
@@ -59,7 +59,7 @@ def lookup_description(conn: sqlite3.Connection, input_file_path: str) -> str | 
 
 
 def resize_image(
-    path: str, output_dir: pathlib.Path, max_size: int = 1024
+    path: str, output_dir: pathlib.Path, max_size: int = 1024,
 ) -> tuple[Image.Image, pathlib.Path]:
     image = Image.open(path)
     image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
@@ -102,7 +102,7 @@ def describe_image(image: Image.Image) -> str:
                             "text": "Imagine a fantastical scenario set an hour after this photo",
                         },
                     ],
-                }
+                },
             ],
             betas=["files-api-2025-04-14"],
         )

@@ -18,11 +18,11 @@ from ._core import (
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Transform a photo into a fantasy image"
+        description="Transform a photo into a fantasy image",
     )
     parser.add_argument("image_path", help="Path to input image")
     parser.add_argument(
-        "--output-dir", default=".", help="Output directory (default: cwd)"
+        "--output-dir", default=".", help="Output directory (default: cwd)",
     )
     args = parser.parse_args()
 
@@ -62,7 +62,7 @@ def main() -> None:
             else str(result)
         )
         update_run(
-            conn, run_id, output_image_path=output_path, image_model_name=IMAGE_MODEL
+            conn, run_id, output_image_path=output_path, image_model_name=IMAGE_MODEL,
         )
         print(output_path)
     else:
