@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 
 def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
+    """Resolve an API key: DB config → env var → interactive prompt (then store)."""
     value = get_config(conn, key) or os.environ.get(key)
     if not value:
         value = input(f"{prompt}: ").strip()
@@ -36,28 +37,41 @@ def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
     return value
 
 
-def _add_to_photos_album(output_path: str, album_name: str) -> None:
-    try:
-        from osxphotos.photosalbum import (  # noqa: PLC0415  # type: ignore[import-not-found]
-            PhotosAlbum,
-        )
-    except ImportError:
-        return
-    PhotosAlbum(album_name).add(pathlib.Path(output_path))
-
-
-def _resolve_temp(
+def _resolve_option(  # noqa: PLR0913
     conn: sqlite3.Connection,
-    cli_value: float | None,
+    cli_value: str | float | None,
     config_key: str,
-) -> float:
+    *,
+    env_key: str | None = None,
+    default: str | float | None = None,
+    cast: type = str,
+) -> str | float | None:
+    """Resolve option via: CLI flag → DB config key → env var → default."""
     if cli_value is not None:
         return cli_value
     stored = get_config(conn, config_key)
-    return float(stored) if stored is not None else 1.0
+    if stored is not None:
+        return cast(stored)  # type: ignore[return-value]
+    if env_key is not None:
+        env_val = os.environ.get(env_key)
+        if env_val is not None:
+            return cast(env_val)  # type: ignore[return-value]
+    return default
+
+
+def _add_to_photos_album(output_path: str, album_name: str) -> None:
+    """Import a file into macOS Photos and add it to the named album."""
+    try:
+        import photoscript  # noqa: PLC0415  # type: ignore[import-not-found]
+    except ImportError:
+        return
+    library = photoscript.PhotosLibrary()
+    album = library.album(album_name) or library.create_album(album_name)
+    library.import_photos([output_path], album=album, skip_duplicate_check=True)
 
 
 def _parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Transform a photo into a fantasy image",
     )
@@ -78,6 +92,11 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=None,
         help="Sampling temperature for image generation (overrides DB default)",
+    )
+    parser.add_argument(
+        "--destination-album",
+        default=None,
+        help="macOS Photos album to import the generated image into (overrides DB)",
     )
     parser.add_argument(
         "--force",
@@ -105,8 +124,22 @@ def main() -> None:
     input_path = str(pathlib.Path(args.image_path).resolve())
 
     conn = init_db(DB_PATH)
-    desc_temp = _resolve_temp(conn, args.desc_temp, "DEFAULT_DESC_TEMP")
-    img_temp = _resolve_temp(conn, args.img_temp, "DEFAULT_IMG_TEMP")
+    desc_temp = float(
+        _resolve_option(
+            conn, args.desc_temp, "DEFAULT_DESC_TEMP", default=1.0, cast=float,
+        ) or 1.0,
+    )
+    img_temp = float(
+        _resolve_option(
+            conn, args.img_temp, "DEFAULT_IMG_TEMP", default=1.0, cast=float,
+        ) or 1.0,
+    )
+    destination_album = _resolve_option(
+        conn,
+        args.destination_album,
+        "DESTINATION_ALBUM",
+        env_key="DESTINATION_ALBUM",
+    )
     anthropic_api_key = _resolve_api_key(
         conn,
         "ANTHROPIC_API_KEY",
@@ -166,9 +199,8 @@ def main() -> None:
             img_temp=img_temp,
             img_gen_ms=img_gen_ms,
         )
-        destination_album = get_config(conn, "destination_album")
         if destination_album:
-            _add_to_photos_album(output_path, destination_album)
+            _add_to_photos_album(output_path, str(destination_album))
             log(f"Added to Photos album: {destination_album}")
         if not args.silent:
             print(output_path)

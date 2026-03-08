@@ -68,6 +68,7 @@ The generated image is saved to the current directory. The story and image promp
 | `--output-dir` | `.` | Directory to save resized and generated images |
 | `--desc-temp` | DB / `1.0` | Sampling temperature for Claude description generation |
 | `--img-temp` | DB / `1.0` | Sampling temperature for Gemini image generation |
+| `--destination-album` | DB / env | macOS Photos album to import the generated image into |
 | `--force` | off | Ignore cached description and regenerate from scratch |
 | `--silent` | off | Suppress all printed output |
 
@@ -113,7 +114,7 @@ sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<key>'
 | `GEMINI_API_KEY` | Google Gemini API key (checked before env var) |
 | `DEFAULT_DESC_TEMP` | Default sampling temperature for description generation (e.g. `1.2`) |
 | `DEFAULT_IMG_TEMP` | Default sampling temperature for image generation (e.g. `0.8`) |
-| `destination_album` | macOS Photos album name to import generated images into (requires `--group mac`) |
+| `DESTINATION_ALBUM` | macOS Photos album name to import generated images into |
 
 ## Project layout
 
