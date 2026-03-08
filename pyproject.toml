@@ -35,7 +35,7 @@ indent-width = 4
 target-version = "py311"
 
 lint.select = ["ALL"]
-lint.ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D107", "D203", "D213", "S608", "T201"]
+lint.ignore = ["D107", "D203", "D213", "S608", "T201"]
 
 [tool.ruff.format]
 # Same as Black.

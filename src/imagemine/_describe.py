@@ -34,7 +34,7 @@ Rules for the IMAGE line:
 """
 
 
-def describe_image(image: Image.Image, temperature: float = 0.5) -> str:
+def describe_image(image: Image.Image, temperature: float = 1.0) -> str:
     client = anthropic.Anthropic()
 
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:

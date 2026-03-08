@@ -1,3 +1,5 @@
+"""Command-line interface for imagemine."""
+
 import argparse
 import pathlib
 import sys
@@ -9,6 +11,7 @@ from ._generate import generate_image
 
 
 def main() -> None:
+    """Run the imagemine pipeline: resize, describe, generate."""
     parser = argparse.ArgumentParser(
         description="Transform a photo into a fantasy image",
     )
