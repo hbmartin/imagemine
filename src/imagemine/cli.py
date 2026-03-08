@@ -34,6 +34,15 @@ def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
     return value
 
 
+def _resolve_temp(
+    conn: sqlite3.Connection, cli_value: float | None, config_key: str,
+) -> float:
+    if cli_value is not None:
+        return cli_value
+    stored = get_config(conn, config_key)
+    return float(stored) if stored is not None else 1.0
+
+
 def main() -> None:
     """Run the imagemine pipeline: resize, describe, generate."""
     parser = argparse.ArgumentParser(
@@ -48,14 +57,14 @@ def main() -> None:
     parser.add_argument(
         "--desc-temp",
         type=float,
-        default=1.0,
-        help="Sampling temperature for description generation (default: 1.0)",
+        default=None,
+        help="Sampling temperature for description generation (overrides DB default)",
     )
     parser.add_argument(
         "--img-temp",
         type=float,
-        default=1.0,
-        help="Sampling temperature for image generation (default: 1.0)",
+        default=None,
+        help="Sampling temperature for image generation (overrides DB default)",
     )
     args = parser.parse_args()
 
@@ -64,6 +73,8 @@ def main() -> None:
     input_path = str(pathlib.Path(args.image_path).resolve())
 
     conn = init_db(DB_PATH)
+    desc_temp = _resolve_temp(conn, args.desc_temp, "DEFAULT_DESC_TEMP")
+    img_temp = _resolve_temp(conn, args.img_temp, "DEFAULT_IMG_TEMP")
     anthropic_api_key = _resolve_api_key(
         conn, "ANTHROPIC_API_KEY", "Enter Anthropic API key",
     )
@@ -81,20 +92,20 @@ def main() -> None:
     else:
         print("Generating fantastical description with Claude...", file=sys.stderr)
         description = describe_image(
-            image, temperature=args.desc_temp, api_key=anthropic_api_key,
+            image, temperature=desc_temp, api_key=anthropic_api_key,
         )
         update_run(
             conn,
             run_id,
             generated_description=description,
             description_model_name=DESCRIPTION_MODEL,
-            desc_temp=args.desc_temp,
+            desc_temp=desc_temp,
         )
     print(f"\nDescription:\n{description}\n", file=sys.stderr)
 
     print("Generating fantasy image with Gemini...", file=sys.stderr)
     result = generate_image(
-        description, image, temperature=args.img_temp, api_key=gemini_api_key,
+        description, image, api_key=gemini_api_key, temperature=img_temp,
     )
 
     if result is not None:
@@ -104,7 +115,7 @@ def main() -> None:
             run_id,
             output_image_path=output_path,
             image_model_name=IMAGE_MODEL,
-            img_temp=args.img_temp,
+            img_temp=img_temp,
         )
         print(output_path)
     else:

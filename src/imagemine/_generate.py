@@ -9,7 +9,10 @@ if TYPE_CHECKING:
 
 
 def generate_image(
-    description: str, image: Image.Image, temperature: float = 1.0,
+    description: str,
+    image: Image.Image,
+    api_key: str,
+    temperature: float = 1.0,
 ) -> object:
-    g = GemImg(model=IMAGE_MODEL)
-    return g.generate(description, image, aspect_ratio="16:9", temperature=temperature)
+    g = GemImg(model=IMAGE_MODEL, api_key=api_key)
+    return g.generate(description, image, aspect_ratio="4:3", temperature=temperature)
