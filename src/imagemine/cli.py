@@ -2,18 +2,10 @@ import argparse
 import pathlib
 import sys
 
-from ._core import (
-    DB_PATH,
-    DESCRIPTION_MODEL,
-    IMAGE_MODEL,
-    describe_image,
-    generate_image,
-    init_db,
-    insert_run,
-    lookup_description,
-    resize_image,
-    update_run,
-)
+from ._core import DB_PATH, DESCRIPTION_MODEL, IMAGE_MODEL, resize_image
+from ._db import init_db, insert_run, lookup_description, update_run
+from ._describe import describe_image
+from ._generate import generate_image
 
 
 def main() -> None:
@@ -22,7 +14,9 @@ def main() -> None:
     )
     parser.add_argument("image_path", help="Path to input image")
     parser.add_argument(
-        "--output-dir", default=".", help="Output directory (default: cwd)",
+        "--output-dir",
+        default=".",
+        help="Output directory (default: cwd)",
     )
     args = parser.parse_args()
 
@@ -58,7 +52,10 @@ def main() -> None:
     if result is not None:
         output_path = str(getattr(result, "path", result))
         update_run(
-            conn, run_id, output_image_path=output_path, image_model_name=IMAGE_MODEL,
+            conn,
+            run_id,
+            output_image_path=output_path,
+            image_model_name=IMAGE_MODEL,
         )
         print(output_path)
     else:
