@@ -5,9 +5,9 @@ Transform any photo into a fantasy image. imagemine uses Claude to write a surre
 ## How it works
 
 1. Resize input image to max 1024px (preserving aspect ratio) and save to disk
-2. Upload to Claude Sonnet via the Files API; generate a short surrealist story and image prompt
+2. Send to Claude Sonnet via base64; generate a short surrealist story and image prompt
 3. Pass the story + original image to Gemini (Nano Banana Pro) to generate the fantasy version
-4. Save all run metadata — input, resized path, description, output path, models, temperatures — to a local SQLite database (`imagemine.db`)
+4. Save all run metadata to a local SQLite database (`imagemine.db`)
 
 ## Requirements
 
@@ -21,7 +21,13 @@ Transform any photo into a fantasy image. imagemine uses Claude to write a surre
 ```sh
 git clone <repo-url>
 cd imagemine
-uv pip install -e .
+uv sync
+```
+
+For macOS Photos integration:
+
+```sh
+uv sync --group mac
 ```
 
 ## API keys
@@ -32,7 +38,7 @@ Keys are resolved in this order on each run:
 2. **Environment variables** — `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`
 3. **Interactive prompt** — if neither is found, you are prompted and the value is saved to the database for future runs
 
-To set keys ahead of time via environment:
+To set keys via environment:
 
 ```sh
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -54,19 +60,16 @@ imagemine path/to/photo.jpg
 
 The generated image is saved to the current directory. The story and image prompt are printed to stderr; the output file path is printed to stdout.
 
-### Options
+### CLI flags
 
-```
-usage: imagemine [-h] [--output-dir OUTPUT_DIR] [--desc-temp DESC_TEMP] [--img-temp IMG_TEMP] image_path
-
-positional arguments:
-  image_path            Path to input image
-
-options:
-  --output-dir          Output directory (default: current directory)
-  --desc-temp           Sampling temperature for description generation (default: 1.0)
-  --img-temp            Sampling temperature for image generation (default: 1.0)
-```
+| Flag | Default | Description |
+|---|---|---|
+| `image_path` | *(required)* | Path to input image |
+| `--output-dir` | `.` | Directory to save resized and generated images |
+| `--desc-temp` | DB / `1.0` | Sampling temperature for Claude description generation |
+| `--img-temp` | DB / `1.0` | Sampling temperature for Gemini image generation |
+| `--force` | off | Ignore cached description and regenerate from scratch |
+| `--silent` | off | Suppress all printed output |
 
 ### Examples
 
@@ -80,7 +83,13 @@ imagemine photo.jpg --output-dir ~/Desktop/imagemine-out
 # Tune creativity
 imagemine photo.jpg --desc-temp 1.5 --img-temp 0.8
 
-# Redirect description to a file, output path to stdout
+# Re-run on the same photo, ignoring the cached description
+imagemine photo.jpg --force
+
+# Silent mode — no output, just runs and records to DB
+imagemine photo.jpg --silent
+
+# Redirect story to a file, output path to stdout
 imagemine photo.jpg 2>story.txt
 ```
 
@@ -89,6 +98,22 @@ imagemine photo.jpg 2>story.txt
 ```sh
 uv run imagemine path/to/photo.jpg
 ```
+
+## Configuration
+
+All configuration is stored in the `config` table of `imagemine.db`. Use `INSERT OR REPLACE` to set or update any value:
+
+```sh
+sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<key>', '<value>');"
+```
+
+| Key | Description |
+|---|---|
+| `ANTHROPIC_API_KEY` | Anthropic API key (checked before env var) |
+| `GEMINI_API_KEY` | Google Gemini API key (checked before env var) |
+| `DEFAULT_DESC_TEMP` | Default sampling temperature for description generation (e.g. `1.2`) |
+| `DEFAULT_IMG_TEMP` | Default sampling temperature for image generation (e.g. `0.8`) |
+| `destination_album` | macOS Photos album name to import generated images into (requires `--group mac`) |
 
 ## Project layout
 
@@ -109,13 +134,16 @@ Every run is recorded in `imagemine.db` (created in the working directory). The 
 
 | Column | Description |
 |---|---|
+| `started_at` | UTC timestamp when the run began |
 | `input_file_path` | Absolute path to the source image |
 | `resized_file_path` | Path to the saved resized JPEG |
 | `generated_description` | Story + image prompt from Claude |
 | `description_model_name` | Claude model used |
 | `desc_temp` | Temperature used for description generation |
+| `desc_gen_ms` | Description generation time in milliseconds |
 | `output_image_path` | Path to the generated image |
 | `image_model_name` | Gemini model used |
 | `img_temp` | Temperature used for image generation |
+| `img_gen_ms` | Image generation time in milliseconds |
 
-If a source image path already has a description stored, Claude is skipped and the cached description is reused.
+If a source image path already has a description stored, Claude is skipped and the cached description is reused. Use `--force` to bypass this.

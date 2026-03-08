@@ -79,6 +79,14 @@ def update_run(conn: sqlite3.Connection, run_id: int, **kwargs: str | float) -> 
     conn.commit()
 
 
+def avg_duration_ms(conn: sqlite3.Connection, column: str) -> float | None:
+    row = conn.execute(
+        f"SELECT AVG({column}) FROM runs WHERE {column} IS NOT NULL",
+    ).fetchone()
+    val = row[0] if row else None
+    return float(val) if val is not None else None
+
+
 def lookup_description(conn: sqlite3.Connection, input_file_path: str) -> str | None:
     row = conn.execute(
         "SELECT generated_description FROM runs "

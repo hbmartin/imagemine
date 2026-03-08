@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from ._core import DB_PATH, DESCRIPTION_MODEL, IMAGE_MODEL, resize_image
 from ._db import (
+    avg_duration_ms,
     get_config,
     init_db,
     insert_run,
@@ -35,6 +36,16 @@ def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
     return value
 
 
+def _add_to_photos_album(output_path: str, album_name: str) -> None:
+    try:
+        from osxphotos.photosalbum import (  # noqa: PLC0415  # type: ignore[import-not-found]
+            PhotosAlbum,
+        )
+    except ImportError:
+        return
+    PhotosAlbum(album_name).add(pathlib.Path(output_path))
+
+
 def _resolve_temp(
     conn: sqlite3.Connection,
     cli_value: float | None,
@@ -46,8 +57,7 @@ def _resolve_temp(
     return float(stored) if stored is not None else 1.0
 
 
-def main() -> None:
-    """Run the imagemine pipeline: resize, describe, generate."""
+def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Transform a photo into a fantasy image",
     )
@@ -69,7 +79,26 @@ def main() -> None:
         default=None,
         help="Sampling temperature for image generation (overrides DB default)",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignore cached description and regenerate from scratch",
+    )
+    parser.add_argument(
+        "--silent",
+        action="store_true",
+        help="Suppress all output",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    """Run the imagemine pipeline: resize, describe, generate."""
+    args = _parse_args()
+
+    def log(msg: str) -> None:
+        if not args.silent:
+            print(msg, file=sys.stderr)
 
     output_dir = pathlib.Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -86,16 +115,18 @@ def main() -> None:
     gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
     run_id = insert_run(conn, input_path)
 
-    print("Resizing image...", file=sys.stderr)
+    log("Resizing image...")
     image, resized_path = resize_image(args.image_path, output_dir)
     update_run(conn, run_id, resized_file_path=str(resized_path))
 
-    cached = lookup_description(conn, input_path)
+    cached = None if args.force else lookup_description(conn, input_path)
     if cached:
-        print("Reusing cached description from previous run.", file=sys.stderr)
+        log("Reusing cached description from previous run.")
         description = cached
     else:
-        print("Generating fantastical description with Claude...", file=sys.stderr)
+        avg = avg_duration_ms(conn, "desc_gen_ms")
+        avg_str = f" (avg time: {avg / 1000:.1f}s)" if avg is not None else ""
+        log(f"Generating fantastical description with Claude...{avg_str}")
         t0 = time.monotonic()
         description = describe_image(
             image,
@@ -111,9 +142,11 @@ def main() -> None:
             desc_temp=desc_temp,
             desc_gen_ms=desc_gen_ms,
         )
-    print(f"\nDescription:\n{description}\n", file=sys.stderr)
+    log(f"\nDescription:\n{description}\n")
 
-    print("Generating fantasy image with Gemini...", file=sys.stderr)
+    avg = avg_duration_ms(conn, "img_gen_ms")
+    avg_str = f" (avg time: {avg / 1000:.1f}s)" if avg is not None else ""
+    log(f"Generating fantasy image with Gemini...{avg_str}")
     t0 = time.monotonic()
     result = generate_image(
         description,
@@ -133,6 +166,11 @@ def main() -> None:
             img_temp=img_temp,
             img_gen_ms=img_gen_ms,
         )
-        print(output_path)
+        destination_album = get_config(conn, "destination_album")
+        if destination_album:
+            _add_to_photos_album(output_path, destination_album)
+            log(f"Added to Photos album: {destination_album}")
+        if not args.silent:
+            print(output_path)
     else:
-        print("Image generation failed.", file=sys.stderr)
+        log("Image generation failed.")
