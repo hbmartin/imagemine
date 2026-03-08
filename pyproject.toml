@@ -6,6 +6,7 @@ readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.14"
 dependencies = [
+    "alive-progress>=3.3.0",
     "anthropic>=0.84.0",
     "gemimg>=0.4.0",
     "pillow>=12.1.1",
@@ -52,9 +53,7 @@ build-backend = "uv_build"
 imagemine = "imagemine.cli:main"
 
 [dependency-groups]
-mac = [
-    "osxphotos",
-]
+mac = []
 dev = [
     "black>=26.3.0",
     "pyrefly>=0.55.0",

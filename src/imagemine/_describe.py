@@ -1,13 +1,19 @@
 import pathlib
+import sys
 import tempfile
+import time
 from typing import TYPE_CHECKING
 
 import anthropic
 from anthropic.types.beta import BetaTextBlock
 
 from ._core import DESCRIPTION_MODEL
+from ._db import avg_duration_ms, lookup_description, update_run
 
 if TYPE_CHECKING:
+    import sqlite3
+    from collections.abc import Callable
+
     from PIL import Image
 
 PROMPT = """
@@ -113,3 +119,43 @@ def describe_image(
             return block.text
     msg = "No text block found in response"
     raise TypeError(msg)
+
+
+def _get_description(  # noqa: PLR0913
+    conn: sqlite3.Connection,
+    run_id: int,
+    image: Image.Image,
+    input_path: str,
+    desc_temp: float,
+    api_key: str,
+    *,
+    force: bool,
+    log: Callable[[str], None],
+    err: Callable[[str], None],
+) -> str:
+    """Return a description, from cache or freshly generated."""
+    if not force:
+        cached = lookup_description(conn, input_path)
+        if cached:
+            log("Reusing cached description from previous run.")
+            return cached
+
+    avg = avg_duration_ms(conn, "desc_gen_ms")
+    avg_str = f" (avg time: {avg / 1000:.1f}s)" if avg is not None else ""
+    log(f"Generating fantastical description with Claude...{avg_str}")
+    t0 = time.monotonic()
+    try:
+        description = describe_image(image, temperature=desc_temp, api_key=api_key)
+    except Exception as e:  # noqa: BLE001
+        err(f"Description generation failed: {e}")
+        sys.exit(1)
+    desc_gen_ms = round((time.monotonic() - t0) * 1000)
+    update_run(
+        conn,
+        run_id,
+        generated_description=description,
+        description_model_name=DESCRIPTION_MODEL,
+        desc_temp=desc_temp,
+        desc_gen_ms=desc_gen_ms,
+    )
+    return description
