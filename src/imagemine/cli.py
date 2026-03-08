@@ -4,6 +4,7 @@ import pathlib
 import sys
 from typing import TYPE_CHECKING
 
+from ._album import _add_to_photos_album, _random_photo_from_album
 from ._config import _parse_args, _resolve_api_key, _resolve_option
 from ._core import DB_PATH, resize_image
 from ._db import init_db, insert_run, update_run
@@ -12,38 +13,6 @@ from ._generate import _run_generation
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-
-def _add_to_photos_album(
-    output_path: str,
-    album_name: str,
-) -> None:
-    """Import a file into macOS Photos and add it to the named album."""
-    import subprocess  # noqa: PLC0415
-
-    safe_album = album_name.replace("\\", "\\\\").replace('"', '\\"')
-    safe_path = output_path.replace("\\", "\\\\").replace('"', '\\"')
-    script = "\n".join(
-        [
-            'tell application "Photos"',
-            f'    set theAlbums to every album whose name is "{safe_album}"',
-            "    if (count of theAlbums) = 0 then",
-            f'        error "Photos album not found: {safe_album}"',
-            "    end if",
-            f'    import {{POSIX file "{safe_path}"}} '
-            "into (first item of theAlbums) skip check duplicates yes",
-            "end tell",
-        ],
-    )
-    result = subprocess.run(  # noqa: S603
-        ["/usr/bin/osascript", "-e", script],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        msg = f"Photos import failed for {output_path!r}: {result.stderr.strip()}"
-        raise RuntimeError(msg)
 
 
 def _validate_input(image_path: str, err: Callable[[str], None]) -> str:
@@ -71,7 +40,6 @@ def main() -> None:
 
     output_dir = pathlib.Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    input_path = _validate_input(args.image_path, err)
 
     conn = init_db(DB_PATH)
     desc_temp = float(
@@ -94,6 +62,12 @@ def main() -> None:
         )
         or 1.0,
     )
+    input_album = _resolve_option(
+        conn,
+        args.input_album,
+        "INPUT_ALBUM",
+        env_key="INPUT_ALBUM",
+    )
     destination_album = _resolve_option(
         conn,
         args.destination_album,
@@ -106,11 +80,26 @@ def main() -> None:
         "Enter Anthropic API key",
     )
     gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
+
+    if args.image_path:
+        input_path = _validate_input(args.image_path, err)
+    elif input_album:
+        log(f"Picking random photo from album: {input_album}")
+        try:
+            input_path = _random_photo_from_album(str(input_album))
+        except Exception as e:  # noqa: BLE001
+            err(f"Failed to fetch photo from album {input_album!r}: {e}")
+            sys.exit(1)
+        log(f"Selected: {input_path}")
+    else:
+        err("Provide an image path or configure INPUT_ALBUM")
+        sys.exit(1)
+
     run_id = insert_run(conn, input_path)
 
     log("Resizing image...")
     try:
-        image, resized_path = resize_image(args.image_path, output_dir)
+        image, resized_path = resize_image(input_path, output_dir)
     except Exception as e:  # noqa: BLE001
         err(f"Failed to open image: {e}")
         sys.exit(1)

@@ -40,20 +40,26 @@ After the story, output a section starting with "IMAGE:"
 This section describes the single most creative or hilarious moment from the scene.
 
 ## Style Suggestions (be creative and imagine more of these best suited to the story)
-- Photo realistic (match original)
-- Watercolor
-- 8-Bit Pixel Art
-- Hand-Drawn Sketch
-- Vintage Victorian Portrait: vintage aesthetic, detailed realism
-- 3D Render: stylized character portrait with highly detailed Pixar-style character design, soft studio lighting, ultra-sharp, cinematic render.
-- Y2K Chrome & Plush Fusion
-- Ukiyo-e Woodblock Print: bold outlines, flat color, Japanese edo-period aesthetic
-- Impressionist Oil Painting: loose brushwork, Monet-style dappled light
-- Stained Glass Window: bold lead lines, jewel-toned backlit color
-- 1950s Pulp Magazine Cover: halftone dots, dramatic shadows, bold serif title font
-- Claymation / Stop Motion: tactile clay textures, fingerprint imperfections, warm studio lighting
-- Neon Noir: rain-slicked streets, pink/cyan neon glow, cinematic shadows
-- Children's Picture Book: gouache illustration, chunky shapes, Quentin Blake-style looseness
+- Photorealistic: crisp detail, natural lighting, true-to-life textures
+- Watercolor: soft wet edges, blooming pigment, delicate paper texture
+- 8-Bit Pixel Art: chunky pixels, limited palette, retro arcade aesthetic
+- Hand-Drawn Sketch: loose pencil lines, cross-hatching, rough paper grain
+- Victorian Portrait: ornate gilded frame, sepia tones, formal studio staging
+- 3D Render: Pixar-style, rounded forms, soft studio lighting
+- Y2K Chrome: iridescent metallics, bubbly fonts, early-internet maximalism
+- Ukiyo-e Woodblock: bold outlines, flat color, Japanese Edo-period aesthetic
+- Impressionist Oil: loose visible brushstrokes, dappled light, Monet-style color
+- Stained Glass: bold lead lines, jewel-toned backlit color, gothic tracery
+- Pulp Magazine Cover: halftone dots, dramatic shadows, bold 1950s serif type
+- Claymation: tactile clay textures, fingerprint imperfections, warm studio lighting
+- Neon Noir: rain-slicked streets, pink and cyan glow, deep cinematic shadows
+- Children's Picture Book: gouache illustration, chunky shapes, Quentin Blake looseness
+- Botanical Illustration: fine ink linework, hand-labeled, 18th-century naturalist style
+- Tarot Card: symbolic iconography, ornate border, rich jewel tones, mystical composition
+- Risograph Print: grainy ink texture, limited overlapping spot colors, indie zine aesthetic
+- Low-Poly 3D: geometric facets, flat-shaded triangles, clean minimal palette
+- 1970s Groovy Poster: psychedelic swirls, warm earth tones, rounded bubble lettering
+- Cave Painting: ochre and charcoal, rough stone texture, primitive silhouette style
 
 Rules for the IMAGE description:
 - If the scene is absurd, lean into contrast: pair the chaos with one completely unbothered bystander

@@ -51,7 +51,17 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Transform a photo into a fantasy image",
     )
-    parser.add_argument("image_path", help="Path to input image")
+    parser.add_argument(
+        "image_path",
+        nargs="?",
+        default=None,
+        help="Path to input image (omit to use --input-album or INPUT_ALBUM config)",
+    )
+    parser.add_argument(
+        "--input-album",
+        default=None,
+        help="macOS Photos album to pick a random input image from (overrides DB)",
+    )
     parser.add_argument(
         "--output-dir",
         default=".",
