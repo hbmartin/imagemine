@@ -24,11 +24,6 @@ cd imagemine
 uv sync
 ```
 
-For macOS Photos integration:
-
-```sh
-uv sync --group mac
-```
 
 ## API keys
 
@@ -64,8 +59,9 @@ The generated image is saved to the current directory. The story and image promp
 
 | Flag | Default | Description |
 |---|---|---|
-| `image_path` | *(required)* | Path to input image |
-| `--output-dir` | `.` | Directory to save resized and generated images |
+| `image_path` | — | Path to input image (omit to use `--input-album`) |
+| `--input-album` | DB / env | macOS Photos album to pick a random input image from |
+| `--output-dir` | `.` | Directory to save the generated image |
 | `--desc-temp` | DB / `1.0` | Sampling temperature for Claude description generation |
 | `--img-temp` | DB / `1.0` | Sampling temperature for Gemini image generation |
 | `--destination-album` | DB / env | macOS Photos album to import the generated image into |
@@ -77,6 +73,9 @@ The generated image is saved to the current directory. The story and image promp
 ```sh
 # Basic usage
 imagemine sunset.jpg
+
+# Pick a random photo from a Photos album
+imagemine --input-album "Camera Roll"
 
 # Custom output directory
 imagemine photo.jpg --output-dir ~/Desktop/imagemine-out
@@ -114,6 +113,7 @@ sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<key>'
 | `GEMINI_API_KEY` | Google Gemini API key (checked before env var) |
 | `DEFAULT_DESC_TEMP` | Default sampling temperature for description generation (e.g. `1.2`) |
 | `DEFAULT_IMG_TEMP` | Default sampling temperature for image generation (e.g. `0.8`) |
+| `INPUT_ALBUM` | macOS Photos album to pick a random input image from |
 | `DESTINATION_ALBUM` | macOS Photos album name to import generated images into |
 
 ## Project layout
@@ -121,11 +121,13 @@ sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<key>'
 ```
 src/
   imagemine/
+    _album.py      # macOS Photos integration (input/output album via osascript)
+    _config.py     # argument parsing and config resolution
     _core.py       # constants and image resizing
     _db.py         # SQLite helpers (runs + config tables)
     _describe.py   # Claude description generation
     _generate.py   # Gemini image generation
-    cli.py         # argument parsing and pipeline orchestration
+    cli.py         # pipeline orchestration entry point
     __main__.py    # python -m imagemine entry point
 ```
 
@@ -137,7 +139,7 @@ Every run is recorded in `imagemine.db` (created in the working directory). The 
 |---|---|
 | `started_at` | UTC timestamp when the run began |
 | `input_file_path` | Absolute path to the source image |
-| `resized_file_path` | Path to the saved resized JPEG |
+| `resized_file_path` | Path to the temporary resized JPEG (deleted after generation) |
 | `generated_description` | Story + image prompt from Claude |
 | `description_model_name` | Claude model used |
 | `desc_temp` | Temperature used for description generation |
@@ -146,5 +148,6 @@ Every run is recorded in `imagemine.db` (created in the working directory). The 
 | `image_model_name` | Gemini model used |
 | `img_temp` | Temperature used for image generation |
 | `img_gen_ms` | Image generation time in milliseconds |
+| `input_album_photo_id` | Photos item ID when input was selected from an album |
 
 If a source image path already has a description stored, Claude is skipped and the cached description is reused. Use `--force` to bypass this.

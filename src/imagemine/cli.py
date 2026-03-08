@@ -105,7 +105,10 @@ def main() -> None:
     gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
 
     input_path, input_album_photo_id = _resolve_input(
-        args.image_path, str(input_album) if input_album else None, log=log, err=err,
+        args.image_path,
+        str(input_album) if input_album else None,
+        log=log,
+        err=err,
     )
 
     run_id = insert_run(conn, input_path)
@@ -144,6 +147,8 @@ def main() -> None:
         log=log,
         err=err,
     )
+    resized_path.unlink(missing_ok=True)
+
     if destination_album:
         try:
             _add_to_photos_album(output_path, str(destination_album))

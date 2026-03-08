@@ -39,7 +39,7 @@ Begin the story mid-action, not with setup.
 After the story, output a section starting with "IMAGE:"
 This section describes the single most creative or hilarious moment from the scene.
 
-## Style Suggestions (be creative - you may imagine more other styles)
+## Style Ideas (be creative - you may imagine more other styles)
 - Photorealistic: crisp detail, natural lighting, true-to-life textures
 - Watercolor: soft wet edges, blooming pigment, delicate paper texture
 - 8-Bit Pixel Art: chunky pixels, limited palette, retro arcade aesthetic
@@ -64,6 +64,11 @@ This section describes the single most creative or hilarious moment from the sce
 - Renaissance Painting: dramatic chiaroscuro, heavenly light rays, cherubs optional
 - Propaganda Poster: bold graphic shapes, limited palette, heroic upward gaze, stark silhouette
 
+## Style Rules
+- Sometimes juxtaposition is great! You can ironically choose a style that contrasts with the scene's absurdity.
+- Sometimes randomness is fun! You can choose a style that reflects the scene's chaotic nature.
+- Sometimes you just want a realistic style matching the scene.
+
 Rules for the IMAGE description:
 - If the scene is absurd, lean into contrast: pair the chaos with one completely unbothered bystander
 - Describe the subject's face as if it's a human actor hitting their best moment
@@ -80,7 +85,7 @@ Control the Camera: Use photographic and cinematic language to control the compo
 
 def describe_image(
     image: Image.Image,
-    temperature: float = 1.0,
+    temperature: float = 2.0,
     api_key: str | None = None,
 ) -> str:
     client = anthropic.Anthropic(api_key=api_key)
