@@ -16,7 +16,7 @@ Write a short, punchy story (about 3 sentences) about what happened.
 
 Rules:
 - The twist must be specific to what's actually in the photo, not generic
-- The main subject should be the cause of the chaos, not the victim of it
+- The main subject(s) should be the cause of the chaos, not the victim of it
 - It should be funny and/or strange, not spooky or epic
 - At least one sentence must be completely unexpected
 - No magic portals, dragons, or time travel — find a weirder angle

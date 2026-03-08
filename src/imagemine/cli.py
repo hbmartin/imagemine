@@ -22,10 +22,16 @@ def main() -> None:
         help="Output directory (default: cwd)",
     )
     parser.add_argument(
-        "--temperature",
+        "--desc-temp",
         type=float,
-        default=0.5,
-        help="Sampling temperature for description generation (default: 0.5)",
+        default=1.0,
+        help="Sampling temperature for description generation (default: 1.0)",
+    )
+    parser.add_argument(
+        "--img-temp",
+        type=float,
+        default=1.0,
+        help="Sampling temperature for image generation (default: 1.0)",
     )
     args = parser.parse_args()
 
@@ -46,18 +52,18 @@ def main() -> None:
         description = cached
     else:
         print("Generating fantastical description with Claude...", file=sys.stderr)
-        description = describe_image(image, temperature=args.temperature)
+        description = describe_image(image, temperature=args.desc_temp)
         update_run(
             conn,
             run_id,
             generated_description=description,
             description_model_name=DESCRIPTION_MODEL,
-            temperature=args.temperature,
+            desc_temp=args.desc_temp,
         )
     print(f"\nDescription:\n{description}\n", file=sys.stderr)
 
     print("Generating fantasy image with Gemini...", file=sys.stderr)
-    result = generate_image(description, image)
+    result = generate_image(description, image, temperature=args.img_temp)
 
     if result is not None:
         output_path = str(getattr(result, "path", result))
@@ -66,6 +72,7 @@ def main() -> None:
             run_id,
             output_image_path=output_path,
             image_model_name=IMAGE_MODEL,
+            img_temp=args.img_temp,
         )
         print(output_path)
     else:

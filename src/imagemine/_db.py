@@ -11,15 +11,18 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
             resized_file_path TEXT,
             generated_description TEXT,
             description_model_name TEXT,
-            temperature REAL,
+            desc_temp REAL,
             output_image_path TEXT,
-            image_model_name TEXT
+            image_model_name TEXT,
+            img_temp REAL
         )
     """)
-    # migrate existing databases that predate the temperature column
+    # migrate existing databases that predate added columns
     existing = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
-    if "temperature" not in existing:
-        conn.execute("ALTER TABLE runs ADD COLUMN temperature REAL")
+    if "desc_temp" not in existing:
+        conn.execute("ALTER TABLE runs ADD COLUMN desc_temp REAL")
+    if "img_temp" not in existing:
+        conn.execute("ALTER TABLE runs ADD COLUMN img_temp REAL")
     conn.commit()
     return conn
 
