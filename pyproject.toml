@@ -52,6 +52,9 @@ build-backend = "uv_build"
 imagemine = "imagemine.cli:main"
 
 [dependency-groups]
+mac = [
+    "osxphotos",
+]
 dev = [
     "black>=26.3.0",
     "pyrefly>=0.55.0",

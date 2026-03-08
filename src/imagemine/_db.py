@@ -19,7 +19,8 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
             image_model_name TEXT,
             img_temp REAL,
             desc_gen_ms INTEGER,
-            img_gen_ms INTEGER
+            img_gen_ms INTEGER,
+            started_at TEXT
         )
     """)
     # migrate existing databases that predate added columns
@@ -32,6 +33,8 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
         conn.execute("ALTER TABLE runs ADD COLUMN desc_gen_ms INTEGER")
     if "img_gen_ms" not in existing:
         conn.execute("ALTER TABLE runs ADD COLUMN img_gen_ms INTEGER")
+    if "started_at" not in existing:
+        conn.execute("ALTER TABLE runs ADD COLUMN started_at TEXT")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,
@@ -60,7 +63,7 @@ def set_config(conn: sqlite3.Connection, key: str, value: str) -> None:
 
 def insert_run(conn: sqlite3.Connection, input_file_path: str) -> int:
     cur = conn.execute(
-        "INSERT INTO runs (input_file_path) VALUES (?)",
+        "INSERT INTO runs (input_file_path, started_at) VALUES (?, datetime('now'))",
         (input_file_path,),
     )
     conn.commit()
