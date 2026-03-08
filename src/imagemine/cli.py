@@ -17,9 +17,13 @@ from ._core import (
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Transform a photo into a fantasy image")
+    parser = argparse.ArgumentParser(
+        description="Transform a photo into a fantasy image"
+    )
     parser.add_argument("image_path", help="Path to input image")
-    parser.add_argument("--output-dir", default=".", help="Output directory (default: cwd)")
+    parser.add_argument(
+        "--output-dir", default=".", help="Output directory (default: cwd)"
+    )
     args = parser.parse_args()
 
     output_dir = pathlib.Path(args.output_dir).resolve()
@@ -40,15 +44,26 @@ def main() -> None:
     else:
         print("Generating fantastical description with Claude...", file=sys.stderr)
         description = describe_image(image)
-        update_run(conn, run_id, generated_description=description, description_model_name=DESCRIPTION_MODEL)
+        update_run(
+            conn,
+            run_id,
+            generated_description=description,
+            description_model_name=DESCRIPTION_MODEL,
+        )
     print(f"\nDescription:\n{description}\n", file=sys.stderr)
 
     print("Generating fantasy image with Gemini...", file=sys.stderr)
     result = generate_image(description, image)
 
     if result is not None:
-        output_path = str(pathlib.Path(result.path).resolve()) if hasattr(result, "path") else str(result)
-        update_run(conn, run_id, output_image_path=output_path, image_model_name=IMAGE_MODEL)
+        output_path = (
+            str(pathlib.Path(result.path).resolve())
+            if hasattr(result, "path")
+            else str(result)
+        )
+        update_run(
+            conn, run_id, output_image_path=output_path, image_model_name=IMAGE_MODEL
+        )
         print(output_path)
     else:
         print("Image generation failed.", file=sys.stderr)

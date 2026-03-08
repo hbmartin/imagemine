@@ -13,6 +13,7 @@ DB_PATH = pathlib.Path("imagemine.db")
 
 # --- Database ---
 
+
 def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.execute("""
@@ -56,7 +57,10 @@ def lookup_description(conn: sqlite3.Connection, input_file_path: str) -> str | 
 
 # --- Pipeline ---
 
-def resize_image(path: str, output_dir: pathlib.Path, max_size: int = 1024) -> tuple[Image.Image, pathlib.Path]:
+
+def resize_image(
+    path: str, output_dir: pathlib.Path, max_size: int = 1024
+) -> tuple[Image.Image, pathlib.Path]:
     image = Image.open(path)
     image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
     stem = pathlib.Path(path).stem
