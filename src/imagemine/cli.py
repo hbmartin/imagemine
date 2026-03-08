@@ -27,6 +27,29 @@ def _validate_input(image_path: str, err: Callable[[str], None]) -> str:
     return str(p.resolve())
 
 
+def _resolve_input(
+    image_path: str | None,
+    input_album: str | None,
+    *,
+    log: Callable[[str], None],
+    err: Callable[[str], None],
+) -> tuple[str, str | None]:
+    """Return (resolved_input_path, album_photo_id_or_none)."""
+    if image_path:
+        return _validate_input(image_path, err), None
+    if input_album:
+        log(f"Picking random photo from album: {input_album}")
+        try:
+            path, photo_id = _random_photo_from_album(input_album)
+        except Exception as e:  # noqa: BLE001
+            err(f"Failed to fetch photo from album {input_album!r}: {e}")
+            sys.exit(1)
+        log(f"Selected: {path} (id: {photo_id})")
+        return path, photo_id
+    err("Provide an image path or configure INPUT_ALBUM")
+    sys.exit(1)
+
+
 def main() -> None:
     """Run the imagemine pipeline: resize, describe, generate."""
     args = _parse_args()
@@ -81,21 +104,13 @@ def main() -> None:
     )
     gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
 
-    if args.image_path:
-        input_path = _validate_input(args.image_path, err)
-    elif input_album:
-        log(f"Picking random photo from album: {input_album}")
-        try:
-            input_path = _random_photo_from_album(str(input_album))
-        except Exception as e:  # noqa: BLE001
-            err(f"Failed to fetch photo from album {input_album!r}: {e}")
-            sys.exit(1)
-        log(f"Selected: {input_path}")
-    else:
-        err("Provide an image path or configure INPUT_ALBUM")
-        sys.exit(1)
+    input_path, input_album_photo_id = _resolve_input(
+        args.image_path, str(input_album) if input_album else None, log=log, err=err,
+    )
 
     run_id = insert_run(conn, input_path)
+    if input_album_photo_id:
+        update_run(conn, run_id, input_album_photo_id=input_album_photo_id)
 
     log("Resizing image...")
     try:

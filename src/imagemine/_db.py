@@ -35,6 +35,8 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
         conn.execute("ALTER TABLE runs ADD COLUMN img_gen_ms INTEGER")
     if "started_at" not in existing:
         conn.execute("ALTER TABLE runs ADD COLUMN started_at TEXT")
+    if "input_album_photo_id" not in existing:
+        conn.execute("ALTER TABLE runs ADD COLUMN input_album_photo_id TEXT")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,

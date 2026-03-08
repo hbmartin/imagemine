@@ -39,19 +39,17 @@ Begin the story mid-action, not with setup.
 After the story, output a section starting with "IMAGE:"
 This section describes the single most creative or hilarious moment from the scene.
 
-## Style Suggestions (be creative and imagine more of these best suited to the story)
+## Style Suggestions (be creative - you may imagine more other styles)
 - Photorealistic: crisp detail, natural lighting, true-to-life textures
 - Watercolor: soft wet edges, blooming pigment, delicate paper texture
 - 8-Bit Pixel Art: chunky pixels, limited palette, retro arcade aesthetic
 - Hand-Drawn Sketch: loose pencil lines, cross-hatching, rough paper grain
 - Victorian Portrait: ornate gilded frame, sepia tones, formal studio staging
-- 3D Render: Pixar-style, rounded forms, soft studio lighting
 - Y2K Chrome: iridescent metallics, bubbly fonts, early-internet maximalism
 - Ukiyo-e Woodblock: bold outlines, flat color, Japanese Edo-period aesthetic
 - Impressionist Oil: loose visible brushstrokes, dappled light, Monet-style color
 - Stained Glass: bold lead lines, jewel-toned backlit color, gothic tracery
 - Pulp Magazine Cover: halftone dots, dramatic shadows, bold 1950s serif type
-- Claymation: tactile clay textures, fingerprint imperfections, warm studio lighting
 - Neon Noir: rain-slicked streets, pink and cyan glow, deep cinematic shadows
 - Children's Picture Book: gouache illustration, chunky shapes, Quentin Blake looseness
 - Botanical Illustration: fine ink linework, hand-labeled, 18th-century naturalist style
@@ -60,6 +58,11 @@ This section describes the single most creative or hilarious moment from the sce
 - Low-Poly 3D: geometric facets, flat-shaded triangles, clean minimal palette
 - 1970s Groovy Poster: psychedelic swirls, warm earth tones, rounded bubble lettering
 - Cave Painting: ochre and charcoal, rough stone texture, primitive silhouette style
+- Meme Format: bold white Impact font, black outline text, classic macro layout
+- Album Cover: centered subject, minimal negative space, stark typographic treatment
+- Dadaist Collage: clashing cut-and-paste elements, absurdist juxtaposition, chaotic composition
+- Renaissance Painting: dramatic chiaroscuro, heavenly light rays, cherubs optional
+- Propaganda Poster: bold graphic shapes, limited palette, heroic upward gaze, stark silhouette
 
 Rules for the IMAGE description:
 - If the scene is absurd, lean into contrast: pair the chaos with one completely unbothered bystander

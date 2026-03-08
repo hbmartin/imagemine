@@ -35,8 +35,11 @@ def _add_to_photos_album(
         raise RuntimeError(msg)
 
 
-def _random_photo_from_album(album_name: str) -> str:
-    """Export a random photo from a macOS Photos album; return its path."""
+def _random_photo_from_album(album_name: str) -> tuple[str, str]:
+    """Export a random photo from a macOS Photos album.
+
+    Returns (exported_file_path, photos_item_id).
+    """
     tmp_dir = tempfile.mkdtemp(prefix="imagemine_input_")
     safe_album = album_name.replace("\\", "\\\\").replace('"', '\\"')
     script = "\n".join(
@@ -51,7 +54,9 @@ def _random_photo_from_album(album_name: str) -> str:
             f'        error "Album is empty: {safe_album}"',
             "    end if",
             "    set idx to (random number from 1 to (count of theItems)) as integer",
-            f'    export {{item idx of theItems}} to POSIX file "{tmp_dir}"',
+            "    set thePhoto to item idx of theItems",
+            f'    export {{thePhoto}} to POSIX file "{tmp_dir}"',
+            "    return id of thePhoto",
             "end tell",
         ],
     )
@@ -70,4 +75,5 @@ def _random_photo_from_album(album_name: str) -> str:
     if not files:
         msg = f"No photo exported from album {album_name!r}"
         raise RuntimeError(msg)
-    return str(files[0])
+    photo_id = result.stdout.strip()
+    return str(files[0]), photo_id
