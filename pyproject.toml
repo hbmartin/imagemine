@@ -11,4 +11,7 @@ dependencies = [
 ]
 
 [project.scripts]
-imagemine = "main:main"
+imagemine = "imagemine.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
