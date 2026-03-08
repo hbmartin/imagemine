@@ -56,11 +56,7 @@ def main() -> None:
     result = generate_image(description, image)
 
     if result is not None:
-        output_path = (
-            str(pathlib.Path(result.path).resolve())
-            if hasattr(result, "path")
-            else str(result)
-        )
+        output_path = str(getattr(result, "path", result))
         update_run(
             conn, run_id, output_image_path=output_path, image_model_name=IMAGE_MODEL,
         )

@@ -112,11 +112,11 @@ def describe_image(image: Image.Image) -> str:
     finally:
         client.beta.files.delete(uploaded.id, betas=["files-api-2025-04-14"])
 
-    block = response.content[0]
-    if not isinstance(block, BetaTextBlock):
-        msg = f"Unexpected response block type: {type(block)}"
-        raise TypeError(msg)
-    return block.text
+    for block in response.content:
+        if isinstance(block, BetaTextBlock):
+            return block.text
+    msg = "No text block found in response"
+    raise TypeError(msg)
 
 
 def generate_image(description: str, image: Image.Image) -> object:
