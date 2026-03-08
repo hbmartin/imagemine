@@ -26,8 +26,28 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
         conn.execute("ALTER TABLE runs ADD COLUMN desc_temp REAL")
     if "img_temp" not in existing:
         conn.execute("ALTER TABLE runs ADD COLUMN img_temp REAL")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    """)
     conn.commit()
     return conn
+
+
+def get_config(conn: sqlite3.Connection, key: str) -> str | None:
+    row = conn.execute(
+        "SELECT value FROM config WHERE key = ?", (key,),
+    ).fetchone()
+    return row[0] if row else None
+
+
+def set_config(conn: sqlite3.Connection, key: str, value: str) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value),
+    )
+    conn.commit()
 
 
 def insert_run(conn: sqlite3.Connection, input_file_path: str) -> int:

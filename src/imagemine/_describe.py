@@ -37,8 +37,10 @@ Rules for the IMAGE line:
 """
 
 
-def describe_image(image: Image.Image, temperature: float = 1.0) -> str:
-    client = anthropic.Anthropic()
+def describe_image(
+    image: Image.Image, temperature: float = 1.0, api_key: str | None = None,
+) -> str:
+    client = anthropic.Anthropic(api_key=api_key)
 
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
         image.save(tmp, format="JPEG")

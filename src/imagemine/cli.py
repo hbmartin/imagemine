@@ -1,13 +1,37 @@
 """Command-line interface for imagemine."""
 
 import argparse
+import os
 import pathlib
 import sys
+from typing import TYPE_CHECKING
 
 from ._core import DB_PATH, DESCRIPTION_MODEL, IMAGE_MODEL, resize_image
-from ._db import init_db, insert_run, lookup_description, update_run
+from ._db import (
+    get_config,
+    init_db,
+    insert_run,
+    lookup_description,
+    set_config,
+    update_run,
+)
 from ._describe import describe_image
 from ._generate import generate_image
+
+if TYPE_CHECKING:
+    import sqlite3
+
+
+def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
+    value = get_config(conn, key) or os.environ.get(key)
+    if not value:
+        value = input(f"{prompt}: ").strip()
+        if not value:
+            print(f"Error: {key} is required.", file=sys.stderr)
+            sys.exit(1)
+        set_config(conn, key, value)
+        print(f"{key} saved to database.", file=sys.stderr)
+    return value
 
 
 def main() -> None:
@@ -40,6 +64,10 @@ def main() -> None:
     input_path = str(pathlib.Path(args.image_path).resolve())
 
     conn = init_db(DB_PATH)
+    anthropic_api_key = _resolve_api_key(
+        conn, "ANTHROPIC_API_KEY", "Enter Anthropic API key",
+    )
+    gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
     run_id = insert_run(conn, input_path)
 
     print("Resizing image...", file=sys.stderr)
@@ -52,7 +80,9 @@ def main() -> None:
         description = cached
     else:
         print("Generating fantastical description with Claude...", file=sys.stderr)
-        description = describe_image(image, temperature=args.desc_temp)
+        description = describe_image(
+            image, temperature=args.desc_temp, api_key=anthropic_api_key,
+        )
         update_run(
             conn,
             run_id,
@@ -63,7 +93,9 @@ def main() -> None:
     print(f"\nDescription:\n{description}\n", file=sys.stderr)
 
     print("Generating fantasy image with Gemini...", file=sys.stderr)
-    result = generate_image(description, image, temperature=args.img_temp)
+    result = generate_image(
+        description, image, temperature=args.img_temp, api_key=gemini_api_key,
+    )
 
     if result is not None:
         output_path = str(getattr(result, "path", result))

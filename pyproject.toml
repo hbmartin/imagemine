@@ -44,6 +44,10 @@ Homepage = "https://github.com/harold-martin/imagemine"
 Repository = "https://github.com/harold-martin/imagemine"
 Issues = "https://github.com/harold-martin/imagemine/issues"
 
+[build-system]
+requires = ["uv_build>=0.10.9,<0.11.0"]
+build-backend = "uv_build"
+
 [project.scripts]
 imagemine = "imagemine.cli:main"
 
