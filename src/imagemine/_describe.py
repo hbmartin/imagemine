@@ -1,11 +1,14 @@
 import pathlib
 import tempfile
+from typing import TYPE_CHECKING
 
 import anthropic
 from anthropic.types.beta import BetaTextBlock
-from PIL import Image
 
 from ._core import DESCRIPTION_MODEL
+
+if TYPE_CHECKING:
+    from PIL import Image
 
 PROMPT = """
 You are a surrealist writer. Look at this photo carefully, the specific details matter.

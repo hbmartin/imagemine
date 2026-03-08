@@ -1,5 +1,8 @@
-import pathlib
 import sqlite3
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pathlib
 
 
 def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
