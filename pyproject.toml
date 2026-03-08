@@ -3,12 +3,46 @@ name = "imagemine"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
+license = { text = "Apache-2.0" }
 requires-python = ">=3.14"
 dependencies = [
     "anthropic>=0.84.0",
     "gemimg>=0.4.0",
     "pillow>=12.1.1",
 ]
+authors = [
+    { name = "Harold Martin", email = "Harold.Martin@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+keywords = [
+    "image",
+    "vision",
+    "llm",
+    "ai",
+    "ocr",
+    "extraction",
+    "anthropic",
+    "claude",
+    "multimodal",
+]
+
+[project.urls]
+Homepage = "https://github.com/harold-martin/imagemine"
+Repository = "https://github.com/harold-martin/imagemine"
+Issues = "https://github.com/harold-martin/imagemine/issues"
 
 [project.scripts]
 imagemine = "imagemine.cli:main"
@@ -25,6 +59,10 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 
+[tool.black]
+line-length = 88
+target-version = ["py314"]
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".ipynb_checkpoints", ".mypy_cache", ".nox", ".pants.d", ".pyenv", ".pytest_cache", ".pytype", ".ruff_cache", ".svn", ".tox", ".venv", ".vscode", "__pypackages__", "_build", "buck-out", "build", "dist", "node_modules", "setup.py", "site-packages", "venv"]
@@ -32,10 +70,18 @@ exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".ipynb_ch
 # Same as Black.
 line-length = 88
 indent-width = 4
-target-version = "py311"
+target-version = "py314"
 
 lint.select = ["ALL"]
 lint.ignore = ["D107", "D203", "D213", "S608", "T201"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ANN",    # Type annotations not required in tests
+    "D",      # Docstrings not required in tests
+    "S101",   # assert is expected in tests
+    "SLF001", # Private member access is fine in tests
+]
 
 [tool.ruff.format]
 # Same as Black.
