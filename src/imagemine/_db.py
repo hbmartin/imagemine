@@ -17,7 +17,9 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
             desc_temp REAL,
             output_image_path TEXT,
             image_model_name TEXT,
-            img_temp REAL
+            img_temp REAL,
+            desc_gen_ms INTEGER,
+            img_gen_ms INTEGER
         )
     """)
     # migrate existing databases that predate added columns
@@ -26,6 +28,10 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
         conn.execute("ALTER TABLE runs ADD COLUMN desc_temp REAL")
     if "img_temp" not in existing:
         conn.execute("ALTER TABLE runs ADD COLUMN img_temp REAL")
+    if "desc_gen_ms" not in existing:
+        conn.execute("ALTER TABLE runs ADD COLUMN desc_gen_ms INTEGER")
+    if "img_gen_ms" not in existing:
+        conn.execute("ALTER TABLE runs ADD COLUMN img_gen_ms INTEGER")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,
@@ -38,14 +44,16 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
 
 def get_config(conn: sqlite3.Connection, key: str) -> str | None:
     row = conn.execute(
-        "SELECT value FROM config WHERE key = ?", (key,),
+        "SELECT value FROM config WHERE key = ?",
+        (key,),
     ).fetchone()
     return row[0] if row else None
 
 
 def set_config(conn: sqlite3.Connection, key: str, value: str) -> None:
     conn.execute(
-        "INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value),
+        "INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)",
+        (key, value),
     )
     conn.commit()
 

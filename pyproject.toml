@@ -80,6 +80,7 @@ lint.select = ["ALL"]
 lint.ignore = ["D107", "D203", "D213", "S608", "T201"]
 
 [tool.ruff.lint.per-file-ignores]
+"src/imagemine/_describe.py" = ["E501"]  # long prompt strings
 "tests/**/*.py" = [
     "ANN",    # Type annotations not required in tests
     "D",      # Docstrings not required in tests

@@ -4,6 +4,7 @@ import argparse
 import os
 import pathlib
 import sys
+import time
 from typing import TYPE_CHECKING
 
 from ._core import DB_PATH, DESCRIPTION_MODEL, IMAGE_MODEL, resize_image
@@ -35,7 +36,9 @@ def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
 
 
 def _resolve_temp(
-    conn: sqlite3.Connection, cli_value: float | None, config_key: str,
+    conn: sqlite3.Connection,
+    cli_value: float | None,
+    config_key: str,
 ) -> float:
     if cli_value is not None:
         return cli_value
@@ -76,7 +79,9 @@ def main() -> None:
     desc_temp = _resolve_temp(conn, args.desc_temp, "DEFAULT_DESC_TEMP")
     img_temp = _resolve_temp(conn, args.img_temp, "DEFAULT_IMG_TEMP")
     anthropic_api_key = _resolve_api_key(
-        conn, "ANTHROPIC_API_KEY", "Enter Anthropic API key",
+        conn,
+        "ANTHROPIC_API_KEY",
+        "Enter Anthropic API key",
     )
     gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
     run_id = insert_run(conn, input_path)
@@ -91,22 +96,32 @@ def main() -> None:
         description = cached
     else:
         print("Generating fantastical description with Claude...", file=sys.stderr)
+        t0 = time.monotonic()
         description = describe_image(
-            image, temperature=desc_temp, api_key=anthropic_api_key,
+            image,
+            temperature=desc_temp,
+            api_key=anthropic_api_key,
         )
+        desc_gen_ms = round((time.monotonic() - t0) * 1000)
         update_run(
             conn,
             run_id,
             generated_description=description,
             description_model_name=DESCRIPTION_MODEL,
             desc_temp=desc_temp,
+            desc_gen_ms=desc_gen_ms,
         )
     print(f"\nDescription:\n{description}\n", file=sys.stderr)
 
     print("Generating fantasy image with Gemini...", file=sys.stderr)
+    t0 = time.monotonic()
     result = generate_image(
-        description, image, api_key=gemini_api_key, temperature=img_temp,
+        description,
+        image,
+        api_key=gemini_api_key,
+        temperature=img_temp,
     )
+    img_gen_ms = round((time.monotonic() - t0) * 1000)
 
     if result is not None:
         output_path = str(getattr(result, "path", result))
@@ -116,6 +131,7 @@ def main() -> None:
             output_image_path=output_path,
             image_model_name=IMAGE_MODEL,
             img_temp=img_temp,
+            img_gen_ms=img_gen_ms,
         )
         print(output_path)
     else:
