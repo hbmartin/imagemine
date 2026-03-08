@@ -11,10 +11,15 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
             resized_file_path TEXT,
             generated_description TEXT,
             description_model_name TEXT,
+            temperature REAL,
             output_image_path TEXT,
             image_model_name TEXT
         )
     """)
+    # migrate existing databases that predate the temperature column
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
+    if "temperature" not in existing:
+        conn.execute("ALTER TABLE runs ADD COLUMN temperature REAL")
     conn.commit()
     return conn
 
@@ -31,7 +36,7 @@ def insert_run(conn: sqlite3.Connection, input_file_path: str) -> int:
     return cur.lastrowid
 
 
-def update_run(conn: sqlite3.Connection, run_id: int, **kwargs: str) -> None:
+def update_run(conn: sqlite3.Connection, run_id: int, **kwargs: str | float) -> None:
     cols = ", ".join(f"{k} = ?" for k in kwargs)
     conn.execute(f"UPDATE runs SET {cols} WHERE id = ?", (*kwargs.values(), run_id))
     conn.commit()

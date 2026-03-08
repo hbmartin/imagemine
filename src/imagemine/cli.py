@@ -18,6 +18,12 @@ def main() -> None:
         default=".",
         help="Output directory (default: cwd)",
     )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.5,
+        help="Sampling temperature for description generation (default: 0.5)",
+    )
     args = parser.parse_args()
 
     output_dir = pathlib.Path(args.output_dir).resolve()
@@ -37,12 +43,13 @@ def main() -> None:
         description = cached
     else:
         print("Generating fantastical description with Claude...", file=sys.stderr)
-        description = describe_image(image)
+        description = describe_image(image, temperature=args.temperature)
         update_run(
             conn,
             run_id,
             generated_description=description,
             description_model_name=DESCRIPTION_MODEL,
+            temperature=args.temperature,
         )
     print(f"\nDescription:\n{description}\n", file=sys.stderr)
 

@@ -7,8 +7,34 @@ from PIL import Image
 
 from ._core import DESCRIPTION_MODEL
 
+PROMPT = """
+You are a surrealist writer. Look at this photo carefully, the specific details matter.
+(e.g. the dog's motivations, expression, body language, and surroundings.)
 
-def describe_image(image: Image.Image) -> str:
+A few hours after this photo was taken, something wild happened!
+Write a short, punchy story (about 3 sentences) about what happened.
+
+Rules:
+- The twist must be specific to what's actually in the photo, not generic
+- The main subject should be the cause of the chaos, not the victim of it
+- It should be funny and/or strange, not spooky or epic
+- At least one sentence must be completely unexpected
+- No magic portals, dragons, or time travel — find a weirder angle
+
+Begin the story mid-action, not with setup.
+
+After the story, output a single line starting with "IMAGE:"
+This line describes the single most creative or hilarious moment from the scene.
+
+Rules for the IMAGE line:
+- Written as a visual description only — no backstory, no "as if" or "about to"
+- Describe only what a camera would literally capture at that instant
+- Be specific: include e.g. expressions and absurd physical details
+- Format: [subject doing thing], [environment], [style]
+"""
+
+
+def describe_image(image: Image.Image, temperature: float = 0.5) -> str:
     client = anthropic.Anthropic()
 
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
@@ -25,6 +51,7 @@ def describe_image(image: Image.Image) -> str:
         response = client.beta.messages.create(
             model=DESCRIPTION_MODEL,
             max_tokens=1024,
+            temperature=temperature,
             messages=[
                 {
                     "role": "user",
@@ -38,7 +65,7 @@ def describe_image(image: Image.Image) -> str:
                         },
                         {
                             "type": "text",
-                            "text": "Imagine a fantastical scenario set an hour after this photo",  # noqa: E501
+                            "text": PROMPT,
                         },
                     ],
                 },
