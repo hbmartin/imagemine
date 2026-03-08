@@ -1,0 +1,1 @@
+- Always run `uv run black src; uv run ruff check src --fix; uv run pyrefly check src` after making changes.

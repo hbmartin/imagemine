@@ -3,6 +3,7 @@ import sqlite3
 import tempfile
 
 import anthropic
+from anthropic.types.beta import BetaTextBlock
 from gemimg import GemImg
 from PIL import Image
 
@@ -36,11 +37,13 @@ def insert_run(conn: sqlite3.Connection, input_file_path: str) -> int:
         "INSERT INTO runs (input_file_path) VALUES (?)", (input_file_path,),
     )
     conn.commit()
-    assert cur.lastrowid is not None
+    if cur.lastrowid is None:
+        msg = "INSERT did not return a row ID"
+        raise RuntimeError(msg)
     return cur.lastrowid
 
 
-def update_run(conn: sqlite3.Connection, run_id: int, **kwargs) -> None:
+def update_run(conn: sqlite3.Connection, run_id: int, **kwargs: str) -> None:
     cols = ", ".join(f"{k} = ?" for k in kwargs)
     conn.execute(f"UPDATE runs SET {cols} WHERE id = ?", (*kwargs.values(), run_id))
     conn.commit()
@@ -99,7 +102,7 @@ def describe_image(image: Image.Image) -> str:
                         },
                         {
                             "type": "text",
-                            "text": "Imagine a fantastical scenario set an hour after this photo",
+                            "text": "Imagine a fantastical scenario set an hour after this photo",  # noqa: E501
                         },
                     ],
                 },
@@ -109,9 +112,13 @@ def describe_image(image: Image.Image) -> str:
     finally:
         client.beta.files.delete(uploaded.id, betas=["files-api-2025-04-14"])
 
-    return response.content[0].text
+    block = response.content[0]
+    if not isinstance(block, BetaTextBlock):
+        msg = f"Unexpected response block type: {type(block)}"
+        raise TypeError(msg)
+    return block.text
 
 
-def generate_image(description: str, image: Image.Image):
+def generate_image(description: str, image: Image.Image) -> object:
     g = GemImg(model=IMAGE_MODEL)
     return g.generate(description, image)

@@ -15,10 +15,11 @@ imagemine = "imagemine.cli:main"
 
 [dependency-groups]
 dev = [
-    "black>=25.9.0",
+    "black>=26.3.0",
+    "pyrefly>=0.55.0",
     "pytest>=8.4.2",
-    "ruff>=0.14.3",
-    "ty>=0.0.1a25",
+    "ruff>=0.15.5",
+    "ty>=0.0.21",
 ]
 
 [tool.pytest.ini_options]
