@@ -20,23 +20,10 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
             img_temp REAL,
             desc_gen_ms INTEGER,
             img_gen_ms INTEGER,
-            started_at TEXT
+            started_at TEXT,
+            input_album_photo_id TEXT
         )
     """)
-    # migrate existing databases that predate added columns
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
-    if "desc_temp" not in existing:
-        conn.execute("ALTER TABLE runs ADD COLUMN desc_temp REAL")
-    if "img_temp" not in existing:
-        conn.execute("ALTER TABLE runs ADD COLUMN img_temp REAL")
-    if "desc_gen_ms" not in existing:
-        conn.execute("ALTER TABLE runs ADD COLUMN desc_gen_ms INTEGER")
-    if "img_gen_ms" not in existing:
-        conn.execute("ALTER TABLE runs ADD COLUMN img_gen_ms INTEGER")
-    if "started_at" not in existing:
-        conn.execute("ALTER TABLE runs ADD COLUMN started_at TEXT")
-    if "input_album_photo_id" not in existing:
-        conn.execute("ALTER TABLE runs ADD COLUMN input_album_photo_id TEXT")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,

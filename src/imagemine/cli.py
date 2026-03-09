@@ -70,10 +70,10 @@ def main() -> None:
             conn,
             args.desc_temp,
             "DEFAULT_DESC_TEMP",
-            default=1.0,
+            default=2.0,
             cast=float,
         )
-        or 1.0,
+        or 2.0,
     )
     img_temp = float(
         _resolve_option(
