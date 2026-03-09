@@ -12,7 +12,7 @@ def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
     return any(row[1] == column for row in rows)
 
 
-def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
+def init_db(db_path: pathlib.Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS runs (

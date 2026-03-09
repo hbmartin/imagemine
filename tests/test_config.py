@@ -13,7 +13,7 @@ from imagemine._config import (
     _resolve_option,
     _resolve_required_option,
 )
-from imagemine._db import get_config, init_db, set_config
+from imagemine._db import get_config, set_config
 
 DB_TEMP = 1.5
 ENV_TEMP = 0.8
@@ -23,17 +23,12 @@ CONFIG_INTERVAL = 30
 CONFIG_DB_PATH = "/path/to/test.db"
 
 
-def _mem():
-    return init_db(":memory:")
-
-
 # ---------------------------------------------------------------------------
 # _resolve_option priority: CLI → DB → env
 # ---------------------------------------------------------------------------
 
 
-def test_cli_value_takes_priority_over_all(monkeypatch) -> None:
-    conn = _mem()
+def test_cli_value_takes_priority_over_all(conn, monkeypatch) -> None:
     set_config(conn, "MY_KEY", "db_value")
     monkeypatch.setenv("MY_ENV", "env_value")
 
@@ -42,8 +37,7 @@ def test_cli_value_takes_priority_over_all(monkeypatch) -> None:
     assert result == "cli_value"
 
 
-def test_db_value_used_when_cli_is_none(monkeypatch) -> None:
-    conn = _mem()
+def test_db_value_used_when_cli_is_none(conn, monkeypatch) -> None:
     set_config(conn, "MY_KEY", "db_value")
     monkeypatch.delenv("MY_ENV", raising=False)
 
@@ -52,8 +46,7 @@ def test_db_value_used_when_cli_is_none(monkeypatch) -> None:
     assert result == "db_value"
 
 
-def test_env_used_when_cli_and_db_are_absent(monkeypatch) -> None:
-    conn = _mem()
+def test_env_used_when_cli_and_db_are_absent(conn, monkeypatch) -> None:
     monkeypatch.setenv("MY_ENV", "env_value")
 
     result = _resolve_option(conn, None, "MISSING_KEY", env_key="MY_ENV")
@@ -61,16 +54,14 @@ def test_env_used_when_cli_and_db_are_absent(monkeypatch) -> None:
     assert result == "env_value"
 
 
-def test_returns_none_when_nothing_set(monkeypatch) -> None:
-    conn = _mem()
+def test_returns_none_when_nothing_set(conn, monkeypatch) -> None:
     monkeypatch.delenv("MY_ENV", raising=False)
 
     result = _resolve_option(conn, None, "MISSING_KEY", env_key="MY_ENV")
     assert result is None
 
 
-def test_cast_applied_to_db_string_value() -> None:
-    conn = _mem()
+def test_cast_applied_to_db_string_value(conn) -> None:
     set_config(conn, "TEMP", str(DB_TEMP))
 
     result = _resolve_option(conn, None, "TEMP", cast=float)
@@ -79,8 +70,7 @@ def test_cast_applied_to_db_string_value() -> None:
     assert isinstance(result, float)
 
 
-def test_cast_applied_to_env_value(monkeypatch) -> None:
-    conn = _mem()
+def test_cast_applied_to_env_value(conn, monkeypatch) -> None:
     monkeypatch.setenv("MY_TEMP", str(ENV_TEMP))
 
     result = _resolve_option(conn, None, "MISSING_KEY", env_key="MY_TEMP", cast=float)
@@ -89,8 +79,8 @@ def test_cast_applied_to_env_value(monkeypatch) -> None:
     assert isinstance(result, float)
 
 
-def test_cli_float_value_returned_unchanged() -> None:
-    result = _resolve_option(_mem(), CLI_TEMP, "MISSING_KEY", cast=float)
+def test_cli_float_value_returned_unchanged(conn) -> None:
+    result = _resolve_option(conn, CLI_TEMP, "MISSING_KEY", cast=float)
     assert result == CLI_TEMP
 
 
@@ -99,8 +89,7 @@ def test_cli_float_value_returned_unchanged() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_required_default_used_when_nothing_else_present(monkeypatch) -> None:
-    conn = _mem()
+def test_required_default_used_when_nothing_else_present(conn, monkeypatch) -> None:
     monkeypatch.delenv("MY_ENV", raising=False)
 
     result = _resolve_required_option(
@@ -114,8 +103,7 @@ def test_required_default_used_when_nothing_else_present(monkeypatch) -> None:
     assert result == "default_val"
 
 
-def test_required_option_returns_default_typed_value(monkeypatch) -> None:
-    conn = _mem()
+def test_required_option_returns_default_typed_value(conn, monkeypatch) -> None:
     monkeypatch.delenv("MY_TEMP", raising=False)
 
     result = _resolve_required_option(
@@ -136,8 +124,7 @@ def test_required_option_returns_default_typed_value(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_api_key_returned_from_db(monkeypatch) -> None:
-    conn = _mem()
+def test_api_key_returned_from_db(conn, monkeypatch) -> None:
     set_config(conn, "ANTHROPIC_API_KEY", "db-key")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
@@ -146,8 +133,7 @@ def test_api_key_returned_from_db(monkeypatch) -> None:
     assert result == "db-key"
 
 
-def test_api_key_returned_from_env_when_db_empty(monkeypatch) -> None:
-    conn = _mem()
+def test_api_key_returned_from_env_when_db_empty(conn, monkeypatch) -> None:
     monkeypatch.setenv("MY_API_KEY", "env-key")
 
     result = _resolve_api_key(conn, "MY_API_KEY", "Enter key")
@@ -155,8 +141,7 @@ def test_api_key_returned_from_env_when_db_empty(monkeypatch) -> None:
     assert result == "env-key"
 
 
-def test_api_key_prompt_used_when_db_and_env_absent(monkeypatch) -> None:
-    conn = _mem()
+def test_api_key_prompt_used_when_db_and_env_absent(conn, monkeypatch) -> None:
     monkeypatch.delenv("MY_API_KEY", raising=False)
     fake_console = types.SimpleNamespace(print=lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cfg, "Console", lambda: fake_console)
@@ -168,8 +153,7 @@ def test_api_key_prompt_used_when_db_and_env_absent(monkeypatch) -> None:
     assert get_config(conn, "MY_API_KEY") == "prompted-key"
 
 
-def test_api_key_blank_prompt_exits(monkeypatch) -> None:
-    conn = _mem()
+def test_api_key_blank_prompt_exits(conn, monkeypatch) -> None:
     monkeypatch.delenv("MY_API_KEY", raising=False)
     fake_console = types.SimpleNamespace(print=lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cfg, "Console", lambda: fake_console)

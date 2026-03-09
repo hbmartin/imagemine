@@ -386,7 +386,11 @@ def test_main_runs_pipeline_with_resolved_paths(monkeypatch, tmp_path) -> None:
         lambda db_path: init_db_calls.append(db_path) or fake_conn,
     )
     monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
-    monkeypatch.setattr(cli, "_resolve_required_option", lambda *_a, default, **_kw: default)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
+    )
     monkeypatch.setattr(cli, "_resolve_option", lambda *_a, **_kw: None)
     monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
     monkeypatch.setattr(
@@ -399,7 +403,7 @@ def test_main_runs_pipeline_with_resolved_paths(monkeypatch, tmp_path) -> None:
 
     assert init_db_calls == [pathlib.Path(args.config_path).expanduser()]
     assert len(pipeline_calls) == 1
-    positional, kwargs = pipeline_calls[0]
+    positional, _kwargs = pipeline_calls[0]
     conn, _console, _err, t_start, output_dir = positional
     assert conn is fake_conn
     assert isinstance(t_start, float)
@@ -414,7 +418,11 @@ def test_main_passes_story_to_pipeline(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(cli, "_parse_args", lambda: args)
     monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
     monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
-    monkeypatch.setattr(cli, "_resolve_required_option", lambda *_a, default, **_kw: default)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
+    )
     monkeypatch.setattr(cli, "_resolve_option", lambda *_a, **_kw: None)
     monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
     monkeypatch.setattr(

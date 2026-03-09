@@ -75,7 +75,7 @@ def describe_image(
 
     prompt = PROMPT
     if story:
-        prompt = f"Background information:\n{story}\n\n{PROMPT}"
+        prompt = f"{PROMPT}\n\nIncorporate this information into your scene and story:\n{story}"
 
     try:
         response = client.beta.messages.create(

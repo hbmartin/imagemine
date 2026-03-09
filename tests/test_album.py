@@ -6,7 +6,34 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
-from imagemine._album import _random_photo_from_album
+from imagemine._album import _add_to_photos_album, _random_photo_from_album
+
+
+def test_add_to_photos_album_passes_values_via_osascript_argv(monkeypatch, tmp_path):
+    output_path = tmp_path / "generated image.png"
+    output_path.write_bytes(b"generated")
+    album_name = 'Album"\nset injected to true'
+    description = 'Line one\nline two "quoted"'
+    captured_args = []
+
+    def fake_run(args, **_kwargs):
+        captured_args.append(args)
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr("imagemine._album.subprocess.run", fake_run)
+
+    _add_to_photos_album(str(output_path), album_name, description)
+
+    assert len(captured_args) == 1
+    script = captured_args[0][2]
+    assert captured_args[0][3:] == [str(output_path), album_name, description]
+    assert album_name not in script
+    assert description not in script
 
 
 def test_random_photo_from_album_cleans_up_temp_dir_on_failure(monkeypatch, tmp_path):
@@ -36,7 +63,43 @@ def test_random_photo_from_album_cleans_up_temp_dir_on_failure(monkeypatch, tmp_
     assert not created_dirs[0].exists()
 
 
-def test_random_photo_from_album_skips_mov(monkeypatch, tmp_path):
+def test_random_photo_from_album_passes_album_name_via_osascript_argv(
+    monkeypatch,
+    tmp_path,
+):
+    created_dirs = []
+    captured_args = []
+    album_name = 'Album"\nset injected to true'
+
+    def fake_mkdtemp(*_args, **_kwargs):
+        path = tmp_path / "imagemine_input_test"
+        path.mkdir()
+        created_dirs.append(path)
+        return str(path)
+
+    def fake_run(args, **_kwargs):
+        captured_args.append(args)
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=1,
+            stdout="",
+            stderr="boom",
+        )
+
+    monkeypatch.setattr("imagemine._album.tempfile.mkdtemp", fake_mkdtemp)
+    monkeypatch.setattr("imagemine._album.subprocess.run", fake_run)
+
+    with pytest.raises(RuntimeError, match="Failed to fetch photo from album"):
+        _random_photo_from_album(album_name)
+
+    assert len(captured_args) == 1
+    script = captured_args[0][2]
+    assert captured_args[0][3:] == [album_name, str(created_dirs[0])]
+    assert album_name not in script
+    assert not created_dirs[0].exists()
+
+
+def test_random_photo_from_album_skips_mov_and_sidecars(monkeypatch, tmp_path):
     call_count = 0
     run_calls = 0
 
@@ -60,18 +123,14 @@ def test_random_photo_from_album_skips_mov(monkeypatch, tmp_path):
     monkeypatch.setattr("imagemine._album.tempfile.mkdtemp", fake_mkdtemp)
     monkeypatch.setattr("imagemine._album.subprocess.run", fake_run)
 
-    # First export contains both Live Photo artifacts; second produces a .jpg.
     def side_effect_iterdir(self):
-        n = int(self.name.split("_")[-1])
-        if n == 1:
-            mov = self / "photo.mov"
-            jpg = self / "photo.jpg"
-            mov.touch()
-            jpg.touch()
-            return iter([mov, jpg])
-        p = self / "photo.jpg"
-        p.touch()
-        return iter([p])
+        mov = self / "photo.mov"
+        aae = self / "photo.aae"
+        jpg = self / "photo.jpg"
+        mov.touch()
+        aae.touch()
+        jpg.touch()
+        return iter([mov, aae, jpg])
 
     monkeypatch.setattr(pathlib.Path, "iterdir", side_effect_iterdir)
 
@@ -86,6 +145,7 @@ def test_random_photo_from_album_skips_mov(monkeypatch, tmp_path):
 
 def test_random_photo_from_album_raises_after_max_mov_attempts(monkeypatch, tmp_path):
     call_count = 0
+    max_attempts = 3
     run_calls = 0
 
     def fake_mkdtemp(*_args, **_kwargs):
@@ -99,7 +159,10 @@ def test_random_photo_from_album_raises_after_max_mov_attempts(monkeypatch, tmp_
         nonlocal run_calls
         run_calls += 1
         return subprocess.CompletedProcess(
-            args=["osascript"], returncode=0, stdout="photo-id", stderr=""
+            args=["osascript"],
+            returncode=0,
+            stdout="photo-id",
+            stderr="",
         )
 
     monkeypatch.setattr("imagemine._album.tempfile.mkdtemp", fake_mkdtemp)
@@ -113,7 +176,7 @@ def test_random_photo_from_album_raises_after_max_mov_attempts(monkeypatch, tmp_
     monkeypatch.setattr(pathlib.Path, "iterdir", always_mov)
 
     with pytest.raises(RuntimeError, match="Could not find a non-video photo"):
-        _random_photo_from_album("Album", max_attempts=3)
+        _random_photo_from_album("Album", max_attempts=max_attempts)
 
-    assert call_count == 3
-    assert run_calls == 3
+    assert call_count == max_attempts
+    assert run_calls == max_attempts

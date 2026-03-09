@@ -7,15 +7,7 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 import imagemine._launchd as lm
-from imagemine._db import init_db, set_config
 from imagemine._launchd import _write_launchd_plist
-
-
-def _mem_conn():
-    conn = init_db(":memory:")
-    for key in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY", "INPUT_ALBUM"):
-        set_config(conn, key, f"{key.lower()}-value")
-    return conn
 
 
 def _patch_plist_path(monkeypatch, tmp_path) -> pathlib.Path:
@@ -29,25 +21,23 @@ def _silent_console(monkeypatch) -> None:
     monkeypatch.setattr(lm, "Console", lambda: fake)
 
 
-def test_requires_uvx_on_path(monkeypatch, tmp_path) -> None:
-    conn = _mem_conn()
+def test_requires_uvx_on_path(launchd_conn, monkeypatch, tmp_path) -> None:
     _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _: None)
 
     with pytest.raises(SystemExit) as exc_info:
-        _write_launchd_plist(conn, interval_minutes=30)
+        _write_launchd_plist(launchd_conn, interval_minutes=30)
 
     assert exc_info.value.code == 1
 
 
-def test_start_interval_is_minutes_times_60(monkeypatch, tmp_path) -> None:
-    conn = _mem_conn()
+def test_start_interval_is_minutes_times_60(launchd_conn, monkeypatch, tmp_path) -> None:
     plist_path = _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _name: "/usr/local/bin/uvx")
 
-    _write_launchd_plist(conn, interval_minutes=45)
+    _write_launchd_plist(launchd_conn, interval_minutes=45)
 
     content = plist_path.read_text()
     assert "/usr/local/bin/uvx" in content
@@ -55,14 +45,13 @@ def test_start_interval_is_minutes_times_60(monkeypatch, tmp_path) -> None:
     assert "<integer>2700</integer>" in content
 
 
-def test_config_path_is_escaped_in_plist(monkeypatch, tmp_path) -> None:
-    conn = _mem_conn()
+def test_config_path_is_escaped_in_plist(launchd_conn, monkeypatch, tmp_path) -> None:
     plist_path = _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _name: "/usr/local/bin/uvx")
 
     _write_launchd_plist(
-        conn,
+        launchd_conn,
         config_path="/home/user/<work>&db",
         interval_minutes=30,
     )
@@ -73,44 +62,40 @@ def test_config_path_is_escaped_in_plist(monkeypatch, tmp_path) -> None:
     assert "/home/user/<work>&db" not in content
 
 
-def test_no_config_path_not_in_plist(monkeypatch, tmp_path) -> None:
-    conn = _mem_conn()
+def test_no_config_path_not_in_plist(launchd_conn, monkeypatch, tmp_path) -> None:
     plist_path = _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _name: "/usr/local/bin/uvx")
 
-    _write_launchd_plist(conn, interval_minutes=30)
+    _write_launchd_plist(launchd_conn, interval_minutes=30)
 
     assert "--config-path" not in plist_path.read_text()
 
 
-def test_prompts_for_interval_when_none(monkeypatch, tmp_path) -> None:
-    conn = _mem_conn()
+def test_prompts_for_interval_when_none(launchd_conn, monkeypatch, tmp_path) -> None:
     plist_path = _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _name: "/usr/local/bin/uvx")
     monkeypatch.setattr(lm.IntPrompt, "ask", lambda *_args, **_kwargs: 20)
 
-    _write_launchd_plist(conn, interval_minutes=None)
+    _write_launchd_plist(launchd_conn, interval_minutes=None)
 
     assert "<integer>1200</integer>" in plist_path.read_text()
 
 
-def test_zero_interval_from_prompt_exits(monkeypatch, tmp_path) -> None:
-    conn = _mem_conn()
+def test_zero_interval_from_prompt_exits(launchd_conn, monkeypatch, tmp_path) -> None:
     _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _name: "/usr/local/bin/uvx")
     monkeypatch.setattr(lm.IntPrompt, "ask", lambda *_args, **_kwargs: 0)
 
     with pytest.raises(SystemExit) as exc_info:
-        _write_launchd_plist(conn, interval_minutes=None)
+        _write_launchd_plist(launchd_conn, interval_minutes=None)
 
     assert exc_info.value.code == 1
 
 
-def test_missing_required_keys_exits(monkeypatch, tmp_path) -> None:
-    conn = init_db(":memory:")
+def test_missing_required_keys_exits(conn, monkeypatch, tmp_path) -> None:
     _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _name: "/usr/local/bin/uvx")
