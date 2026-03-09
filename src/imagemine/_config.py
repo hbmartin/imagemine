@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -37,44 +37,85 @@ def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
     return value
 
 
-def _resolve_option[T = str](
+@overload
+def _resolve_option(
+    conn: sqlite3.Connection,
+    cli_value: str | None,
+    config_key: str,
+    *,
+    env_key: str | None = ...,
+) -> str | None: ...
+
+
+@overload
+def _resolve_option[T](
     conn: sqlite3.Connection,
     cli_value: T | None,
     config_key: str,
     *,
-    env_key: str | None = None,
-    cast: Callable[[str], T] = str,
-) -> T | None:
+    env_key: str | None = ...,
+    cast: Callable[[str], T],
+) -> T | None: ...
+
+
+def _resolve_option(conn, cli_value, config_key, *, env_key=None, cast=None):
     """Resolve an optional config value via CLI flag → DB → env var."""
+    _cast = cast if cast is not None else str
     if cli_value is not None:
         return cli_value
     stored = get_config(conn, config_key)
     if stored is not None:
-        return cast(stored)
+        return _cast(stored)
     if env_key is not None:
         env_val = os.environ.get(env_key)
         if env_val is not None:
-            return cast(env_val)
+            return _cast(env_val)
     return None
 
 
-def _resolve_required_option[T = str](  # noqa: PLR0913
+@overload
+def _resolve_required_option(
+    conn: sqlite3.Connection,
+    cli_value: str | None,
+    config_key: str,
+    *,
+    env_key: str | None = ...,
+    default: str,
+) -> str: ...
+
+
+@overload
+def _resolve_required_option[T](
     conn: sqlite3.Connection,
     cli_value: T | None,
     config_key: str,
     *,
-    env_key: str | None = None,
+    env_key: str | None = ...,
     default: T,
-    cast: Callable[[str], T] = str,
-) -> T:
+    cast: Callable[[str], T],
+) -> T: ...
+
+
+def _resolve_required_option(  # noqa: PLR0913
+    conn,
+    cli_value,
+    config_key,
+    *,
+    env_key=None,
+    default,
+    cast=None,
+):
     """Resolve a required config value via CLI flag → DB → env var → default."""
-    resolved = _resolve_option(
-        conn,
-        cli_value,
-        config_key,
-        env_key=env_key,
-        cast=cast,
-    )
+    if cast is not None:
+        resolved = _resolve_option(
+            conn,
+            cli_value,
+            config_key,
+            env_key=env_key,
+            cast=cast,
+        )
+    else:
+        resolved = _resolve_option(conn, cli_value, config_key, env_key=env_key)
     return default if resolved is None else resolved
 
 
@@ -178,6 +219,11 @@ def _parse_args() -> argparse.Namespace:
         "--add-style",
         action="store_true",
         help="Interactively add a new style to the database and exit",
+    )
+    parser.add_argument(
+        "--remove-style",
+        action="store_true",
+        help="Interactively select and remove styles from the database and exit",
     )
     parser.add_argument(
         "--silent",

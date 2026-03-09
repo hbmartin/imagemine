@@ -10,12 +10,25 @@
 
 Transform any photo into a fantastical image. imagemine uses Claude to write a surrealist story about your photo, then generates a new image from that description using Gemini / Nano Banana.
 
+## Table of Contents
+
+- [How it works](#how-it-works)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [API keys](#api-keys)
+- [CLI flags](#cli-flags)
+- [Styles](#styles)
+- [Configuration](#configuration)
+- [Apple TV screensaver](#apple-tv-screensaver)
+- [Development](#development)
+- [Legal](#legal)
+
 ## How it works
 
 1. Resize input image to max 1024px (preserving aspect ratio) and save to disk
-2. Send to Claude Sonnet via the Files API; generate a short surrealist story and image prompt
+2. Send the resized image to Claude Sonnet via the Files API; generate a short surrealist story and image prompt
 3. Pick a random visual style from the built-in style library (or specify one with `--style`)
-4. Pass the story + style + original image to Gemini to generate the fantasy version
+4. Pass the story + style + resized image to Gemini to generate the fantasy version
 5. Save all run metadata to a local SQLite database (`~/.imagemine.db`)
 
 ## Requirements
@@ -71,9 +84,10 @@ imagemine --config
 | `--output-dir`        | `.`        | Directory to save the generated image                    |
 | `--desc-temp`         | DB / `1.0` | Sampling temperature for Claude description generation   |
 | `--img-temp`          | DB / `1.0` | Sampling temperature for Gemini image generation         |
-| `--style PROMPT`      | —          | Style prompt appended to the description; exits after showing the final prompt (no image generated) |
+| `--style PROMPT`      | —          | Use PROMPT as the style instead of a randomly selected one from the database                        |
 | `--list-styles`       | —          | Show all styles in the database as a table and exit      |
 | `--add-style`         | —          | Interactively add a new style to the database and exit   |
+| `--remove-style`      | —          | Interactively select and remove styles from the database and exit |
 | `--destination-album` | DB / env   | macOS Photos album to import the generated image into    |
 | `--silent`            | off        | Suppress all printed output                              |
 | `--config`            | —          | Interactively configure settings and exit                |
@@ -96,7 +110,7 @@ imagemine photo.jpg --output-dir ~/Desktop/imagemine-out
 # Tune creativity
 imagemine photo.jpg --desc-temp 1.5 --img-temp 0.8
 
-# Preview the description + a custom style prompt (no image generated)
+# Use a custom style prompt instead of a random one
 imagemine photo.jpg --style "Ukiyo-e woodblock print, bold outlines, flat color"
 
 # List all styles in the database
@@ -130,9 +144,9 @@ Each run applies a randomly selected visual style from a built-in library of 35+
 
 Example styles: Watercolor, 8-Bit Pixel Art, Ukiyo-e Woodblock, Neon Noir, Tarot Card, Vaporwave, Glitch Art, Renaissance Painting, and more.
 
-### Previewing a style prompt
+### Using a custom style prompt
 
-Use `--style` to pass a free-form style prompt directly. imagemine will describe the photo, append the style text, print the final combined prompt, and exit — **no image is generated**. This is useful for iterating on a prompt before committing to image generation.
+Use `--style` to pass a free-form style prompt directly instead of picking one at random from the database. imagemine will describe the photo, append the style text, and generate the image.
 
 ```sh
 imagemine photo.jpg --style "Risograph print, grainy ink, limited overlapping spot colors"
@@ -157,8 +171,10 @@ Prompts for a name and a description/prompt, then saves the new style to the dat
 ### Removing a style
 
 ```sh
-sqlite3 ~/.imagemine.db "DELETE FROM styles WHERE name = 'Meme Format';"
+imagemine --remove-style
 ```
+
+Displays a numbered table of all styles. Enter one or more numbers (e.g. `1` or `1,3,5`), review the confirmation prompt, and confirm to delete.
 
 ## Configuration
 

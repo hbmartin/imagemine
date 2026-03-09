@@ -7,7 +7,7 @@ def write_png_metadata(path: str, description: str) -> None:
     with Image.open(path) as img:
         image = img.copy()
         png_info = PngImagePlugin.PngInfo()
-        for key, value in img.text.items():
+        for key, value in getattr(img, "text", {}).items():
             if key != "Description":
                 png_info.add_text(key, value)
         png_info.add_text("Description", description)
