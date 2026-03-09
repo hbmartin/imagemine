@@ -2,6 +2,7 @@ import importlib
 import pathlib
 import sys
 import types
+from types import SimpleNamespace
 
 
 def _install_import_stubs(monkeypatch) -> None:
@@ -30,7 +31,15 @@ def _install_import_stubs(monkeypatch) -> None:
         class Resampling:
             LANCZOS = object()
 
+    class FakePngInfo:
+        def add_text(self, *args, **kwargs):
+            pass
+
+    class PngImagePluginModule:
+        PngInfo = FakePngInfo
+
     pil.Image = ImageModule
+    pil.PngImagePlugin = PngImagePluginModule
 
     monkeypatch.setitem(sys.modules, "anthropic", anthropic)
     monkeypatch.setitem(sys.modules, "anthropic.types", anthropic_types)
@@ -44,6 +53,7 @@ def _import_cli(monkeypatch):
     for module_name in (
         "imagemine.cli",
         "imagemine._core",
+        "imagemine._image",
         "imagemine._describe",
         "imagemine._generate",
     ):
@@ -154,3 +164,154 @@ def test_resolve_input_image_path_takes_priority_over_album(
     assert path == str(img.resolve())
     assert photo_id is None
     assert album_calls == []
+
+
+def test_main_style_preview_skips_gemini_api_key(monkeypatch, tmp_path) -> None:
+    cli = _import_cli(monkeypatch)
+    resized_path = tmp_path / "resized.jpg"
+    resized_path.write_bytes(b"fake")
+    requested_keys = []
+
+    class FakeStatus:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeConsole:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def print(self, *args, **kwargs):
+            pass
+
+        def rule(self, *args, **kwargs):
+            pass
+
+        def status(self, *args, **kwargs):
+            return FakeStatus()
+
+        def save_svg(self, *args, **kwargs):
+            pass
+
+    class FakeProgress:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def add_task(self, *args, **kwargs):
+            return 1
+
+        def update(self, *args, **kwargs):
+            pass
+
+    def fake_resolve_api_key(conn, key, prompt):
+        requested_keys.append(key)
+        return f"{key.lower()}-value"
+
+    monkeypatch.setattr(
+        cli,
+        "_parse_args",
+        lambda: SimpleNamespace(
+            image_path=str(tmp_path / "photo.jpg"),
+            input_album=None,
+            output_dir=str(tmp_path),
+            desc_temp=None,
+            img_temp=None,
+            destination_album=None,
+            style="Risograph print",
+            list_styles=False,
+            add_style=False,
+            silent=False,
+            history=False,
+            config=False,
+            session_svg=False,
+            config_path=None,
+            launchd=None,
+        ),
+    )
+    monkeypatch.setattr(cli, "Console", FakeConsole)
+    monkeypatch.setattr(cli, "Progress", FakeProgress)
+    monkeypatch.setattr(cli, "init_db", lambda db_path: object())
+    monkeypatch.setattr(cli, "_resolve_option", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_required_option",
+        lambda *args, **kwargs: kwargs["default"],
+    )
+    monkeypatch.setattr(cli, "_resolve_api_key", fake_resolve_api_key)
+    monkeypatch.setattr(cli, "_resolve_input", lambda *args, **kwargs: (str(tmp_path / "photo.jpg"), None))
+    monkeypatch.setattr(cli, "insert_run", lambda conn, input_path: 1)
+    monkeypatch.setattr(cli, "update_run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cli, "resize_image", lambda input_path, output_dir: (object(), resized_path))
+    monkeypatch.setattr(cli, "_get_description", lambda *args, **kwargs: "description")
+    monkeypatch.setattr(
+        cli,
+        "_run_generation",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("generation should not run")),
+    )
+
+    cli.main()
+
+    assert requested_keys == ["ANTHROPIC_API_KEY"]
+    assert not resized_path.exists()
+
+
+def test_main_launchd_rejects_non_positive_interval(monkeypatch, tmp_path) -> None:
+    cli = _import_cli(monkeypatch)
+    printed = []
+    launchd_calls = []
+
+    class FakeConsole:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def print(self, *args, **kwargs):
+            printed.append((args, kwargs))
+
+    monkeypatch.setattr(
+        cli,
+        "_parse_args",
+        lambda: SimpleNamespace(
+            image_path=None,
+            input_album=None,
+            output_dir=str(tmp_path),
+            desc_temp=None,
+            img_temp=None,
+            destination_album=None,
+            style=None,
+            list_styles=False,
+            add_style=False,
+            silent=False,
+            history=False,
+            config=False,
+            session_svg=False,
+            config_path=None,
+            launchd=0,
+        ),
+    )
+    monkeypatch.setattr(cli, "Console", FakeConsole)
+    monkeypatch.setattr(cli, "init_db", lambda db_path: object())
+    monkeypatch.setattr(
+        cli,
+        "_write_launchd_plist",
+        lambda **kwargs: launchd_calls.append(kwargs),
+    )
+
+    try:
+        cli.main()
+    except SystemExit as exc:
+        assert exc.code == 1
+    else:
+        raise AssertionError("expected SystemExit")
+
+    assert launchd_calls == []
+    assert printed == [
+        (("[bold red]Error:[/] --launchd must be a positive integer.",), {})
+    ]

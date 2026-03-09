@@ -8,7 +8,7 @@ import anthropic
 from anthropic.types.beta import BetaTextBlock
 
 from ._constants import DEFAULT_DESCRIPTION_MODEL
-from ._db import avg_duration_ms, lookup_description, update_run
+from ._db import avg_duration_ms, update_run
 
 DEFAULT_MODEL = DEFAULT_DESCRIPTION_MODEL
 
@@ -111,22 +111,14 @@ def _get_description(  # noqa: PLR0913
     conn: sqlite3.Connection,
     run_id: int,
     image: Image.Image,
-    input_path: str,
     desc_temp: float,
     api_key: str,
     model: str = DEFAULT_MODEL,
     *,
-    force: bool,
     log: Callable[[str], None],
     err: Callable[[str], None],
 ) -> str:
-    """Return a description, from cache or freshly generated."""
-    if not force:
-        cached = lookup_description(conn, input_path)
-        if cached:
-            log("Reusing cached description from previous run.")
-            return cached
-
+    """Return a description, freshly generated."""
     avg = avg_duration_ms(conn, "desc_gen_ms")
     avg_str = f" (avg time: {avg / 1000:.1f}s)" if avg is not None else ""
     log(f"Generating fantastical description with Claude...{avg_str}")
