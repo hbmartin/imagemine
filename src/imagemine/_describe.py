@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 import anthropic
 from anthropic.types.beta import BetaTextBlock
 
-from ._core import DESCRIPTION_MODEL
+from ._constants import DEFAULT_DESCRIPTION_MODEL
 from ._db import avg_duration_ms, lookup_description, update_run
 
-DEFAULT_MODEL = DESCRIPTION_MODEL
+DEFAULT_MODEL = DEFAULT_DESCRIPTION_MODEL
 
 if TYPE_CHECKING:
     import sqlite3
@@ -133,7 +133,10 @@ def _get_description(  # noqa: PLR0913
     t0 = time.monotonic()
     try:
         description = describe_image(
-            image, temperature=desc_temp, api_key=api_key, model=model,
+            image,
+            temperature=desc_temp,
+            api_key=api_key,
+            model=model,
         )
     except Exception as e:  # noqa: BLE001
         err(f"Description generation failed: {e}")

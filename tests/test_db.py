@@ -10,10 +10,10 @@ from imagemine._db import (
     init_db,
     insert_run,
     lookup_description,
-    random_style,
     set_config,
     update_run,
 )
+from imagemine._styles import random_style
 
 
 def _mem():

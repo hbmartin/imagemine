@@ -53,11 +53,11 @@ build-backend = "uv_build"
 imagemine = "imagemine.cli:main"
 
 [dependency-groups]
-mac = []
 dev = [
     "black>=26.3.0",
     "pyrefly>=0.55.0",
     "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
     "ruff>=0.15.5",
     "ty>=0.0.21",
 ]
