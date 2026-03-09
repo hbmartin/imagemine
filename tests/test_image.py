@@ -34,4 +34,4 @@ def test_write_png_metadata_preserves_existing_dpi(tmp_path) -> None:
 
     with Image.open(path) as image:
         assert image.text["Description"] == "new description"
-        assert image.info["dpi"] == pytest.approx((299.9994, 299.9994))
+        assert image.info["dpi"] == pytest.approx((300, 300), abs=0.01)

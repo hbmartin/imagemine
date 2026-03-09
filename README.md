@@ -8,7 +8,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hbmartin/imagemine)
 
 
-Transform any photo into a something new. imagemine uses Claude to write a surrealist story about your photo, then generates a new image from that description using Gemini / Nano Banana.
+Transform any photo into something new. imagemine uses Claude to write a surrealist story about your photo, then generates a new image from that description using Gemini / Nano Banana.
 
 ## Table of Contents
 
@@ -84,7 +84,7 @@ imagemine --config
 | `--output-dir`        | `.`        | Directory to save the generated image                    |
 | `--desc-temp`         | DB / `1.0` | Sampling temperature for Claude description generation   |
 | `--img-temp`          | DB / `1.0` | Sampling temperature for Gemini image generation         |
-| `--story TEXT`        | —          | Background context passed to Claude when generating the image description                           |
+| `--story TEXT`        | —          | Background context prepended to the Claude prompt when generating the image description             |
 | `--style PROMPT`      | —          | Use PROMPT as the style instead of a randomly selected one from the database                        |
 | `--list-styles`       | —          | Show all styles in the database as a table and exit      |
 | `--add-style`         | —          | Interactively add a new style to the database and exit   |
@@ -262,17 +262,12 @@ To run from the local source:
 uv run imagemine path/to/photo.jpg
 ```
 
-Run the linters and type checker:
+Run the linters, type checker, and tests:
 
 ```sh
-uv run black src
 uv run ruff check src --fix
 uv run pyrefly check src
-```
-
-Run the tests:
-
-```sh
+uv run ty check src
 uv run pytest tests/
 ```
 
@@ -303,7 +298,7 @@ A new description is generated from Claude on every run.
 imagemine uses [Rich](https://github.com/Textualize/rich) for its terminal output:
 
 - **Labeled section rules** divide the pipeline into phases: Resize → Describe → Style → Generate
-- **Live spinners with elapsed timers** show progress during the two API calls — a `moon` spinner for Claude description generation and an `arc` spinner for Gemini image generation
+- **Live spinners with elapsed timers** show progress during the two API calls — a `moon` spinner for Claude description generation and a `smiley` spinner for Gemini image generation
 - **Description panel** renders the generated story as formatted Markdown inside a cyan-bordered panel
 - **Style tree** shows the randomly selected style with its full description
 - **Summary panel** displays source file, style, per-step timing, total wall time, and output path
