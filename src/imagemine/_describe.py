@@ -10,6 +10,8 @@ from anthropic.types.beta import BetaTextBlock
 from ._core import DESCRIPTION_MODEL
 from ._db import avg_duration_ms, lookup_description, update_run
 
+DEFAULT_MODEL = DESCRIPTION_MODEL
+
 if TYPE_CHECKING:
     import sqlite3
     from collections.abc import Callable
@@ -56,6 +58,7 @@ def describe_image(
     image: Image.Image,
     temperature: float = 2.0,
     api_key: str | None = None,
+    model: str = DEFAULT_MODEL,
 ) -> str:
     client = anthropic.Anthropic(api_key=api_key)
 
@@ -71,7 +74,7 @@ def describe_image(
 
     try:
         response = client.beta.messages.create(
-            model=DESCRIPTION_MODEL,
+            model=model,
             max_tokens=1024,
             temperature=temperature,
             messages=[
@@ -111,6 +114,7 @@ def _get_description(  # noqa: PLR0913
     input_path: str,
     desc_temp: float,
     api_key: str,
+    model: str = DEFAULT_MODEL,
     *,
     force: bool,
     log: Callable[[str], None],
@@ -128,7 +132,9 @@ def _get_description(  # noqa: PLR0913
     log(f"Generating fantastical description with Claude...{avg_str}")
     t0 = time.monotonic()
     try:
-        description = describe_image(image, temperature=desc_temp, api_key=api_key)
+        description = describe_image(
+            image, temperature=desc_temp, api_key=api_key, model=model,
+        )
     except Exception as e:  # noqa: BLE001
         err(f"Description generation failed: {e}")
         sys.exit(1)
@@ -137,7 +143,7 @@ def _get_description(  # noqa: PLR0913
         conn,
         run_id,
         generated_description=description,
-        description_model_name=DESCRIPTION_MODEL,
+        description_model_name=model,
         desc_temp=desc_temp,
         desc_gen_ms=desc_gen_ms,
     )

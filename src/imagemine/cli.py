@@ -15,9 +15,16 @@ from rich.text import Text
 from rich.tree import Tree
 
 from ._album import _add_to_photos_album, _random_photo_from_album
-from ._config import _parse_args, _resolve_api_key, _resolve_option, _run_config_wizard
-from ._core import DB_PATH, resize_image
+from ._config import (
+    _parse_args,
+    _resolve_api_key,
+    _resolve_option,
+    _run_add_style,
+    _run_config_wizard,
+)
+from ._core import DB_PATH, DESCRIPTION_MODEL, IMAGE_MODEL, resize_image
 from ._db import (
+    get_all_styles,
     get_recent_runs,
     increment_style_count,
     init_db,
@@ -120,6 +127,24 @@ def _show_history(conn: sqlite3.Connection, console: Console) -> None:
     console.print(table)
 
 
+def _show_styles(conn: sqlite3.Connection, console: Console) -> None:
+    """Display all styles as a Rich table."""
+    styles = get_all_styles(conn)
+    if not styles:
+        console.print("[dim]No styles found.[/]")
+        return
+
+    table = Table(title="Styles", show_lines=True, border_style="dim")
+    table.add_column("Name", style="magenta")
+    table.add_column("Description", style="dim")
+    table.add_column("Used", justify="right", style="yellow")
+
+    for name, description, used_count in styles:
+        table.add_row(name, description, str(used_count))
+
+    console.print(table)
+
+
 def main() -> None:  # noqa: C901, PLR0912, PLR0915
     """Run the imagemine pipeline: resize, describe, generate."""
     args = _parse_args()
@@ -145,6 +170,14 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     if args.config:
         _run_config_wizard(conn)
+        return
+
+    if args.list_styles:
+        _show_styles(conn, console)
+        return
+
+    if args.add_style:
+        _run_add_style(conn)
         return
 
     desc_temp = float(
@@ -178,6 +211,26 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         args.destination_album,
         "DESTINATION_ALBUM",
         env_key="DESTINATION_ALBUM",
+    )
+    claude_model = str(
+        _resolve_option(
+            conn,
+            None,
+            "CLAUDE_MODEL",
+            env_key="CLAUDE_MODEL",
+            default=DESCRIPTION_MODEL,
+        )
+        or DESCRIPTION_MODEL,
+    )
+    gemini_model = str(
+        _resolve_option(
+            conn,
+            None,
+            "GEMINI_MODEL",
+            env_key="GEMINI_MODEL",
+            default=IMAGE_MODEL,
+        )
+        or IMAGE_MODEL,
     )
     anthropic_api_key = _resolve_api_key(
         conn,
@@ -232,6 +285,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             input_path,
             desc_temp,
             anthropic_api_key,
+            claude_model,
             force=args.force,
             log=log_describe,
             err=err,
@@ -250,12 +304,28 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
     console.rule("[dim]Style[/]", style="dim")
     style_name: str | None
     if args.style:
-        style_name = args.style
-        style_desc = ""
-        style: str | None = args.style
-    else:
-        style_name, style_desc = random_style(conn)
-        style = f"{style_name}: {style_desc}" if style_name else None
+        # --style is a free-form prompt appended directly; no DB lookup or generation
+        style_prompt = args.style
+        tree = Tree("[bold]Style (custom)[/]")
+        label = Text()
+        label.append(f"✦ {style_prompt}", style="bold magenta")
+        tree.add(label)
+        console.print(tree)
+        styled_description = f"{description}\n\nStyle: {style_prompt}"
+        console.print(
+            Panel(
+                Markdown(styled_description),
+                title="[bold cyan]Final prompt (preview)[/]",
+                border_style="cyan",
+                padding=(1, 2),
+            ),
+        )
+        console.print("[dim]Pass without --style to proceed with image generation.[/]")
+        resized_path.unlink(missing_ok=True)
+        return
+
+    style_name, style_desc = random_style(conn)
+    style: str | None = f"{style_name}: {style_desc}" if style_name else None
 
     if style and style_name:
         tree = Tree("[bold]Selected style[/]")
@@ -292,6 +362,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             img_temp,
             gemini_api_key,
             output_dir,
+            gemini_model,
             log=log_generate,
             err=err,
         )

@@ -235,3 +235,22 @@ def random_style(conn: sqlite3.Connection) -> tuple[str, str] | tuple[None, None
     if row:
         return row[0], row[1]
     return None, None
+
+
+def get_all_styles(
+    conn: sqlite3.Connection,
+) -> list[tuple[str, str, int]]:
+    """Return all styles as (name, description, used_count) sorted by name."""
+    return conn.execute(
+        "SELECT name, description, used_count FROM styles ORDER BY name",
+    ).fetchall()
+
+
+def add_style(conn: sqlite3.Connection, name: str, description: str) -> None:
+    """Insert or replace a style in the styles table."""
+    conn.execute(
+        "INSERT OR REPLACE INTO styles (name, description, used_count)"
+        " VALUES (?, ?, COALESCE((SELECT used_count FROM styles WHERE name = ?), 0))",
+        (name, description, name),
+    )
+    conn.commit()

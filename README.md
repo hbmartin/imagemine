@@ -57,11 +57,10 @@ export ANTHROPIC_API_KEY=sk-ant-...
 export GEMINI_API_KEY=AI...
 ```
 
-To set or update keys directly in the database:
+To set or update keys directly in the config database:
 
 ```sh
-sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('ANTHROPIC_API_KEY', 'sk-ant-...');"
-sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('GEMINI_API_KEY', 'AI...');"
+imagemine --config
 ```
 
 ## CLI flags
@@ -73,7 +72,9 @@ sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('GEM
 | `--output-dir`        | `.`        | Directory to save the generated image                    |
 | `--desc-temp`         | DB / `1.0` | Sampling temperature for Claude description generation   |
 | `--img-temp`          | DB / `1.0` | Sampling temperature for Gemini image generation         |
-| `--style`             | random     | Visual style to apply (overrides random style selection) |
+| `--style PROMPT`      | —          | Style prompt appended to the description; exits after showing the final prompt (no image generated) |
+| `--list-styles`       | —          | Show all styles in the database as a table and exit      |
+| `--add-style`         | —          | Interactively add a new style to the database and exit   |
 | `--destination-album` | DB / env   | macOS Photos album to import the generated image into    |
 | `--force`             | off        | Ignore cached description and regenerate from scratch    |
 | `--silent`            | off        | Suppress all printed output                              |
@@ -96,8 +97,14 @@ imagemine photo.jpg --output-dir ~/Desktop/imagemine-out
 # Tune creativity
 imagemine photo.jpg --desc-temp 1.5 --img-temp 0.8
 
-# Use a specific style
-imagemine photo.jpg --style "Ukiyo-e Woodblock"
+# Preview the description + a custom style prompt (no image generated)
+imagemine photo.jpg --style "Ukiyo-e woodblock print, bold outlines, flat color"
+
+# List all styles in the database
+imagemine --list-styles
+
+# Add a new style interactively
+imagemine --add-style
 
 # Re-run on the same photo, ignoring the cached description
 imagemine photo.jpg --force
@@ -123,26 +130,37 @@ imagemine --config --config-path ~/work/imagemine.db
 
 ## Styles
 
-Each run applies a randomly selected visual style from a built-in library of 35+ styles. The style is appended to the image prompt sent to Gemini.
+Each run applies a randomly selected visual style from a built-in library of 35+ styles. The style name and description are appended to the image prompt sent to Gemini.
 
 Example styles: Watercolor, 8-Bit Pixel Art, Ukiyo-e Woodblock, Neon Noir, Tarot Card, Vaporwave, Glitch Art, Renaissance Painting, and more.
 
-To lock in a style for a run, use `--style`:
+### Previewing a style prompt
+
+Use `--style` to pass a free-form style prompt directly. imagemine will describe the photo, append the style text, print the final combined prompt, and exit — **no image is generated**. This is useful for iterating on a prompt before committing to image generation.
 
 ```sh
-imagemine photo.jpg --style "Risograph Print"
+imagemine photo.jpg --style "Risograph print, grainy ink, limited overlapping spot colors"
 ```
 
-To add or remove styles, edit the `styles` table in `~/.imagemine.db`:
+### Listing styles
 
 ```sh
-# List styles
-sqlite3 ~/.imagemine.db "SELECT name FROM styles;"
+imagemine --list-styles
+```
 
-# Add a custom style
-sqlite3 ~/.imagemine.db "INSERT INTO styles (name, description) VALUES ('Lego Brick', 'Chunky ABS plastic bricks, primary colors, stud texture, classic minifig proportions.');"
+Prints a table of all styles in the database with their description and usage count.
 
-# Remove a style
+### Adding a style
+
+```sh
+imagemine --add-style
+```
+
+Prompts for a name and a description/prompt, then saves the new style to the database. It will be included in random selection on future runs.
+
+### Removing a style
+
+```sh
 sqlite3 ~/.imagemine.db "DELETE FROM styles WHERE name = 'Meme Format';"
 ```
 
@@ -156,11 +174,6 @@ imagemine --config
 
 The wizard walks through each key in order, pre-populates non-secret fields with their current values, and masks API key input. Leaving a field blank keeps the existing value (or skips it if unset).
 
-You can also edit the `config` table in `~/.imagemine.db` directly:
-
-```sh
-sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<key>', '<value>');"
-```
 
 | Key                 | Description                                                  |
 | ------------------- | ------------------------------------------------------------ |
@@ -168,6 +181,8 @@ sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<ke
 | `GEMINI_API_KEY`    | Google Gemini API key (checked before env var)               |
 | `DEFAULT_DESC_TEMP` | Default sampling temperature for description generation (e.g. `1.2`) |
 | `DEFAULT_IMG_TEMP`  | Default sampling temperature for image generation (e.g. `0.8`) |
+| `CLAUDE_MODEL`      | Claude model to use for description (default: `claude-sonnet-4-6`) |
+| `GEMINI_MODEL`      | Gemini model to use for image generation (default: `gemini-3-pro-image-preview`) |
 | `INPUT_ALBUM`       | macOS Photos album to pick a random input image from         |
 | `DESTINATION_ALBUM` | macOS Photos album name to import generated images into      |
 
@@ -183,13 +198,6 @@ You can use imagemine to generate a living screensaver on Apple TV by continuous
 
 ```sh
 imagemine --config
-```
-
-Or set directly in the database:
-
-```sh
-sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('INPUT_ALBUM', 'Camera Roll');"
-sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('DESTINATION_ALBUM', 'imagemine');"
 ```
 
 3. Run imagemine on a schedule via launchd to keep the output album growing. Create `~/Library/LaunchAgents/imagemine.plist`:

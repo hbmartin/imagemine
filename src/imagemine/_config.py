@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.prompt import Prompt
 from rich.rule import Rule
 
-from ._db import get_config, set_config
+from ._db import add_style, get_config, set_config
 
 if TYPE_CHECKING:
     import sqlite3
@@ -63,6 +63,8 @@ _CONFIG_FIELDS: list[tuple[str, str, bool]] = [
     ("DESTINATION_ALBUM", "Destination Photos album", False),
     ("DEFAULT_DESC_TEMP", "Default description temperature", False),
     ("DEFAULT_IMG_TEMP", "Default image temperature", False),
+    ("CLAUDE_MODEL", "Claude model override", False),
+    ("GEMINI_MODEL", "Gemini model override", False),
 ]
 
 
@@ -96,6 +98,25 @@ def _run_config_wizard(conn: sqlite3.Connection) -> None:
 
     console.print()
     console.print(Rule("[dim]done[/]"))
+
+
+def _run_add_style(conn: sqlite3.Connection) -> None:
+    """Interactively prompt for a new style name and description, then save it."""
+    console = Console()
+    console.print(Rule("[bold magenta]Add style[/]"))
+
+    name = Prompt.ask("[bold]Style name[/]")
+    if not name.strip():
+        console.print("[bold red]Error:[/] Name is required.")
+        sys.exit(1)
+
+    description = Prompt.ask("[bold]Style description / prompt[/]")
+    if not description.strip():
+        console.print("[bold red]Error:[/] Description is required.")
+        sys.exit(1)
+
+    add_style(conn, name.strip(), description.strip())
+    console.print(f"\n  [green]✓[/] Style [magenta]{name.strip()}[/] saved.")
 
 
 def _parse_args() -> argparse.Namespace:
@@ -139,7 +160,21 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--style",
         default=None,
-        help="Image style to use (overrides random selection from styles table)",
+        metavar="PROMPT",
+        help=(
+            "Style prompt appended directly to the description."
+            " Shows the final prompt and exits without generating an image."
+        ),
+    )
+    parser.add_argument(
+        "--list-styles",
+        action="store_true",
+        help="Show all styles in the database as a table and exit",
+    )
+    parser.add_argument(
+        "--add-style",
+        action="store_true",
+        help="Interactively add a new style to the database and exit",
     )
     parser.add_argument(
         "--force",
