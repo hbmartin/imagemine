@@ -8,7 +8,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hbmartin/imagemine)
 
 
-Transform any photo into a fantastical image. imagemine uses Claude to write a surrealist story about your photo, then generates a new image from that description using Gemini / Nano Banana.
+Transform any photo into a something new. imagemine uses Claude to write a surrealist story about your photo, then generates a new image from that description using Gemini / Nano Banana.
 
 ## Table of Contents
 
@@ -28,7 +28,7 @@ Transform any photo into a fantastical image. imagemine uses Claude to write a s
 1. Resize input image to max 1024px (preserving aspect ratio) and save to disk
 2. Send the resized image to Claude Sonnet via the Files API; generate a short surrealist story and image prompt
 3. Pick a random visual style from the built-in style library (or specify one with `--style`)
-4. Pass the story + style + resized image to Gemini to generate the fantasy version
+4. Pass the story + style + resized image to Gemini to generate the re-imagined version
 5. Save all run metadata to a local SQLite database (`~/.imagemine.db`)
 
 ## Requirements
@@ -84,6 +84,7 @@ imagemine --config
 | `--output-dir`        | `.`        | Directory to save the generated image                    |
 | `--desc-temp`         | DB / `1.0` | Sampling temperature for Claude description generation   |
 | `--img-temp`          | DB / `1.0` | Sampling temperature for Gemini image generation         |
+| `--story TEXT`        | —          | Background context passed to Claude when generating the image description                           |
 | `--style PROMPT`      | —          | Use PROMPT as the style instead of a randomly selected one from the database                        |
 | `--list-styles`       | —          | Show all styles in the database as a table and exit      |
 | `--add-style`         | —          | Interactively add a new style to the database and exit   |

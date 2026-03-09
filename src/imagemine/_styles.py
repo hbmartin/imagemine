@@ -233,7 +233,7 @@ def _run_add_style(conn: sqlite3.Connection) -> None:
     console.print(f"\n  [green]✓[/] Style [magenta]{name.strip()}[/] saved.")
 
 
-def _run_remove_style(conn: sqlite3.Connection) -> None:
+def _run_remove_style(conn: sqlite3.Connection) -> None:  # noqa: C901
     """Interactively select and confirm removal of one or more styles."""
     console = Console()
     console.print(Rule("[bold magenta]Remove style[/]"))

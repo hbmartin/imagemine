@@ -52,7 +52,7 @@ def _run_generation(  # noqa: PLR0913
     """Generate image, validate output exists, update DB, return output path."""
     avg = avg_duration_ms(conn, "img_gen_ms")
     avg_str = f" (avg time: {avg / 1000:.1f}s)" if avg is not None else ""
-    log(f"Generating fantasy image with Gemini...{avg_str}")
+    log(f"Generating image with Gemini...{avg_str}")
     t0 = time.monotonic()
     try:
         result = generate_image(

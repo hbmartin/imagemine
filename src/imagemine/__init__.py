@@ -1,1 +1,1 @@
-"""imagemine: transform photos into fantasy images using Claude and Gemini."""
+"""imagemine: transform photos into re-imagined images using Claude and Gemini."""

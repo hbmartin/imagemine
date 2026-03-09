@@ -164,6 +164,7 @@ def run_pipeline(  # noqa: C901, PLR0913, PLR0915
             desc_temp,
             anthropic_api_key,
             claude_model,
+            getattr(args, "story", None),
             log=log_describe,
             err=err,
         )
@@ -212,7 +213,7 @@ def run_pipeline(  # noqa: C901, PLR0913, PLR0915
     gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
 
     with Progress(
-        SpinnerColumn(spinner_name="arc"),
+        SpinnerColumn(spinner_name="smiley"),
         TextColumn("{task.description}"),
         TimeElapsedColumn(),
         console=console,

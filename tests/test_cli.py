@@ -7,117 +7,6 @@ from types import SimpleNamespace
 import pytest
 
 
-def _noop(*_args, **_kwargs) -> None:
-    pass
-
-
-class _FakeStatus:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
-
-class _FakeConsole:
-    def __init__(self, *_args, **_kwargs):
-        pass
-
-    def print(self, *_args, **_kwargs):
-        pass
-
-    def rule(self, *_args, **_kwargs):
-        pass
-
-    def status(self, *_args, **_kwargs):
-        return _FakeStatus()
-
-    def save_svg(self, *_args, **_kwargs):
-        pass
-
-
-class _FakeProgress:
-    def __init__(self, *_args, **_kwargs):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
-    def add_task(self, *_args, **_kwargs):
-        return 1
-
-    def update(self, *_args, **_kwargs):
-        pass
-
-
-def _style_preview_args(tmp_path) -> SimpleNamespace:
-    return SimpleNamespace(
-        image_path=str(tmp_path / "photo.jpg"),
-        input_album=None,
-        output_dir=str(tmp_path),
-        desc_temp=None,
-        img_temp=None,
-        destination_album=None,
-        style="Risograph print",
-        list_styles=False,
-        add_style=False,
-        silent=False,
-        history=False,
-        config=False,
-        session_svg=False,
-        config_path=None,
-        launchd=None,
-    )
-
-
-def _patch_style_preview_dependencies(
-    cli,
-    monkeypatch,
-    tmp_path,
-    resized_path,
-    requested_keys: list[str],
-) -> None:
-    def fake_resolve_api_key(_conn, key, _prompt):
-        requested_keys.append(key)
-        return f"{key.lower()}-value"
-
-    def fake_resolve_required_option(*_args, **kwargs):
-        return kwargs["default"]
-
-    def fake_resolve_input(*_args, **_kwargs):
-        return str(tmp_path / "photo.jpg"), None
-
-    def fake_insert_run(_conn, _input_path):
-        return 1
-
-    def fake_resize_image(_input_path, _output_dir):
-        return object(), resized_path
-
-    def fake_get_description(*_args, **_kwargs):
-        return "description"
-
-    def fake_run_generation(*_args, **_kwargs):
-        msg = "generation should not run"
-        raise AssertionError(msg)
-
-    monkeypatch.setattr(cli, "_parse_args", lambda: _style_preview_args(tmp_path))
-    monkeypatch.setattr(cli, "Console", _FakeConsole)
-    monkeypatch.setattr(cli, "Progress", _FakeProgress)
-    monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
-    monkeypatch.setattr(cli, "_resolve_option", _noop)
-    monkeypatch.setattr(cli, "_resolve_required_option", fake_resolve_required_option)
-    monkeypatch.setattr(cli, "_resolve_api_key", fake_resolve_api_key)
-    monkeypatch.setattr(cli, "_resolve_input", fake_resolve_input)
-    monkeypatch.setattr(cli, "insert_run", fake_insert_run)
-    monkeypatch.setattr(cli, "update_run", _noop)
-    monkeypatch.setattr(cli, "resize_image", fake_resize_image)
-    monkeypatch.setattr(cli, "_get_description", fake_get_description)
-    monkeypatch.setattr(cli, "_run_generation", fake_run_generation)
-
-
 def _install_import_stubs(monkeypatch) -> None:
     root = pathlib.Path(__file__).resolve().parents[1] / "src"
     monkeypatch.syspath_prepend(str(root))
@@ -135,6 +24,11 @@ def _install_import_stubs(monkeypatch) -> None:
     gemimg = types.ModuleType("gemimg")
     gemimg.GemImg = object
 
+    class ImageGen:
+        image_path = "generated.png"
+
+    gemimg.ImageGen = ImageGen
+
     pil = types.ModuleType("PIL")
 
     class ImageModule:
@@ -145,7 +39,7 @@ def _install_import_stubs(monkeypatch) -> None:
             LANCZOS = object()
 
     class FakePngInfo:
-        def add_text(self, *args, **kwargs):
+        def add_text(self, *_args, **_kwargs):
             pass
 
     class PngImagePluginModule:
@@ -161,69 +55,91 @@ def _install_import_stubs(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "PIL", pil)
 
 
+def _clear_imagemine_modules() -> None:
+    for module_name in tuple(sys.modules):
+        if module_name == "imagemine" or module_name.startswith("imagemine."):
+            sys.modules.pop(module_name, None)
+
+
 def _import_cli(monkeypatch):
     _install_import_stubs(monkeypatch)
-    for module_name in (
-        "imagemine.cli",
-        "imagemine._core",
-        "imagemine._image",
-        "imagemine._describe",
-        "imagemine._generate",
-    ):
-        sys.modules.pop(module_name, None)
+    _clear_imagemine_modules()
     return importlib.import_module("imagemine.cli")
 
 
-# ---------------------------------------------------------------------------
-# _validate_input
-# ---------------------------------------------------------------------------
+def _import_pipeline(monkeypatch):
+    _install_import_stubs(monkeypatch)
+    _clear_imagemine_modules()
+    return importlib.import_module("imagemine._pipeline")
+
+
+def _base_args(tmp_path, **overrides) -> SimpleNamespace:
+    values = {
+        "image_path": str(tmp_path / "photo.jpg"),
+        "input_album": None,
+        "output_dir": str(tmp_path / "out"),
+        "desc_temp": None,
+        "img_temp": None,
+        "destination_album": None,
+        "story": None,
+        "style": None,
+        "list_styles": False,
+        "add_style": False,
+        "remove_style": False,
+        "silent": False,
+        "history": False,
+        "config": False,
+        "session_svg": False,
+        "config_path": None,
+        "launchd": None,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
 
 
 def test_validate_input_returns_resolved_path(monkeypatch, tmp_path) -> None:
-    cli = _import_cli(monkeypatch)
+    pipeline = _import_pipeline(monkeypatch)
     img = tmp_path / "photo.jpg"
     img.write_bytes(b"fake")
     errors = []
 
-    result = cli._validate_input(str(img), errors.append)
+    result = pipeline._validate_input(str(img), errors.append)
 
     assert result == str(img.resolve())
     assert errors == []
 
 
 def test_validate_input_missing_file_calls_err_and_exits(monkeypatch, tmp_path) -> None:
-    cli = _import_cli(monkeypatch)
+    pipeline = _import_pipeline(monkeypatch)
     missing = str(tmp_path / "missing.jpg")
     errors = []
 
     with pytest.raises(SystemExit) as exc_info:
-        cli._validate_input(missing, errors.append)
+        pipeline._validate_input(missing, errors.append)
     assert exc_info.value.code == 1
     assert errors == [f"Input file not found: {missing}"]
 
 
 def test_validate_input_directory_calls_err_and_exits(monkeypatch, tmp_path) -> None:
-    cli = _import_cli(monkeypatch)
+    pipeline = _import_pipeline(monkeypatch)
     errors = []
 
     with pytest.raises(SystemExit) as exc_info:
-        cli._validate_input(str(tmp_path), errors.append)
+        pipeline._validate_input(str(tmp_path), errors.append)
     assert exc_info.value.code == 1
     assert errors == [f"Not a file: {tmp_path}"]
 
 
-# ---------------------------------------------------------------------------
-# _resolve_input
-# ---------------------------------------------------------------------------
-
-
 def test_resolve_input_uses_image_path(monkeypatch, tmp_path) -> None:
-    cli = _import_cli(monkeypatch)
+    pipeline = _import_pipeline(monkeypatch)
     img = tmp_path / "photo.jpg"
     img.write_bytes(b"fake")
 
-    path, photo_id = cli._resolve_input(
-        str(img), None, log=lambda _: None, err=lambda _: None,
+    path, photo_id = pipeline._resolve_input(
+        str(img),
+        None,
+        log=lambda _: None,
+        err=lambda _: None,
     )
 
     assert path == str(img.resolve())
@@ -231,19 +147,20 @@ def test_resolve_input_uses_image_path(monkeypatch, tmp_path) -> None:
 
 
 def test_resolve_input_no_path_no_album_exits(monkeypatch) -> None:
-    cli = _import_cli(monkeypatch)
+    pipeline = _import_pipeline(monkeypatch)
     errors = []
 
     with pytest.raises(SystemExit) as exc_info:
-        cli._resolve_input(None, None, log=lambda _: None, err=errors.append)
+        pipeline._resolve_input(None, None, log=lambda _: None, err=errors.append)
     assert exc_info.value.code == 1
-    assert len(errors) == 1
+    assert errors == ["Provide an image path or configure INPUT_ALBUM"]
 
 
 def test_resolve_input_image_path_takes_priority_over_album(
-    monkeypatch, tmp_path,
+    monkeypatch,
+    tmp_path,
 ) -> None:
-    cli = _import_cli(monkeypatch)
+    pipeline = _import_pipeline(monkeypatch)
     img = tmp_path / "photo.jpg"
     img.write_bytes(b"fake")
     album_calls = []
@@ -252,14 +169,13 @@ def test_resolve_input_image_path_takes_priority_over_album(
         album_calls.append(album_name)
         return "/from/album.jpg", "photo-id-123"
 
-    monkeypatch.setattr(
-        importlib.import_module("imagemine._album"),
-        "_random_photo_from_album",
-        fake_random_photo,
-    )
+    monkeypatch.setattr(pipeline, "_random_photo_from_album", fake_random_photo)
 
-    path, photo_id = cli._resolve_input(
-        str(img), "MyAlbum", log=lambda _: None, err=lambda _: None,
+    path, photo_id = pipeline._resolve_input(
+        str(img),
+        "MyAlbum",
+        log=lambda _: None,
+        err=lambda _: None,
     )
 
     assert path == str(img.resolve())
@@ -267,71 +183,62 @@ def test_resolve_input_image_path_takes_priority_over_album(
     assert album_calls == []
 
 
-def test_main_style_preview_skips_gemini_api_key(monkeypatch, tmp_path) -> None:
+def test_main_stops_when_subcommand_is_handled(monkeypatch, tmp_path) -> None:
     cli = _import_cli(monkeypatch)
-    resized_path = tmp_path / "resized.jpg"
-    resized_path.write_bytes(b"fake")
-    requested_keys = []
+    args = _base_args(tmp_path)
+    init_db_calls = []
+    pipeline_calls = []
 
-    _patch_style_preview_dependencies(
+    monkeypatch.setattr(cli, "_parse_args", lambda: args)
+    monkeypatch.setattr(
         cli,
-        monkeypatch,
-        tmp_path,
-        resized_path,
-        requested_keys,
+        "init_db",
+        lambda db_path: init_db_calls.append(db_path) or object(),
+    )
+    monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: True)
+    monkeypatch.setattr(
+        cli,
+        "run_pipeline",
+        lambda *run_args: pipeline_calls.append(run_args),
     )
 
     cli.main()
 
-    assert requested_keys == ["ANTHROPIC_API_KEY"]
-    assert not resized_path.exists()
+    assert init_db_calls == [cli.DEFAULT_DB_PATH]
+    assert pipeline_calls == []
+    assert pathlib.Path(args.output_dir).is_dir()
 
 
-def test_main_launchd_rejects_non_positive_interval(monkeypatch, tmp_path) -> None:
+def test_main_runs_pipeline_with_resolved_paths(monkeypatch, tmp_path) -> None:
     cli = _import_cli(monkeypatch)
-    printed = []
-    launchd_calls = []
+    args = _base_args(
+        tmp_path,
+        output_dir="relative-output",
+        config_path="~/custom/imagemine.db",
+    )
+    init_db_calls = []
+    pipeline_calls = []
+    fake_conn = object()
 
-    class CaptureConsole:
-        def __init__(self, *_args, **_kwargs):
-            pass
-
-        def print(self, *args, **kwargs):
-            printed.append((args, kwargs))
-
+    monkeypatch.setattr(cli, "_parse_args", lambda: args)
     monkeypatch.setattr(
         cli,
-        "_parse_args",
-        lambda: SimpleNamespace(
-            image_path=None,
-            input_album=None,
-            output_dir=str(tmp_path),
-            desc_temp=None,
-            img_temp=None,
-            destination_album=None,
-            style=None,
-            list_styles=False,
-            add_style=False,
-            silent=False,
-            history=False,
-            config=False,
-            session_svg=False,
-            config_path=None,
-            launchd=0,
-        ),
+        "init_db",
+        lambda db_path: init_db_calls.append(db_path) or fake_conn,
     )
-    monkeypatch.setattr(cli, "Console", CaptureConsole)
-    monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
+    monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
     monkeypatch.setattr(
         cli,
-        "_write_launchd_plist",
-        lambda **kwargs: launchd_calls.append(kwargs),
+        "run_pipeline",
+        lambda *run_args: pipeline_calls.append(run_args),
     )
 
-    with pytest.raises(SystemExit) as exc_info:
-        cli.main()
-    assert exc_info.value.code == 1
-    assert launchd_calls == []
-    assert printed == [
-        (("[bold red]Error:[/] --launchd must be a positive integer.",), {}),
-    ]
+    cli.main()
+
+    assert init_db_calls == [pathlib.Path(args.config_path).expanduser()]
+    assert len(pipeline_calls) == 1
+    called_args, called_conn, _console, _err, t_start, output_dir = pipeline_calls[0]
+    assert called_args is args
+    assert called_conn is fake_conn
+    assert isinstance(t_start, float)
+    assert output_dir == pathlib.Path(args.output_dir).resolve()
