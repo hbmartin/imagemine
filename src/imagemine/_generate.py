@@ -8,6 +8,8 @@ from gemimg import GemImg
 from ._core import IMAGE_MODEL
 from ._db import avg_duration_ms, update_run
 
+DEFAULT_MODEL = IMAGE_MODEL
+
 if TYPE_CHECKING:
     import sqlite3
     from collections.abc import Callable
@@ -16,14 +18,15 @@ if TYPE_CHECKING:
     from PIL import Image
 
 
-def generate_image(
+def generate_image(  # noqa: PLR0913
     description: str,
     image: Image.Image,
     api_key: str,
     temperature: float = 1.0,
     save_dir: str = "",
+    model: str = DEFAULT_MODEL,
 ) -> ImageGen | None:
-    g = GemImg(model=IMAGE_MODEL, api_key=api_key)
+    g = GemImg(model=model, api_key=api_key)
     return g.generate(
         description,
         image,
@@ -41,6 +44,7 @@ def _run_generation(  # noqa: PLR0913
     img_temp: float,
     api_key: str,
     output_dir: pathlib.Path,
+    model: str = DEFAULT_MODEL,
     *,
     log: Callable[[str], None],
     err: Callable[[str], None],
@@ -57,6 +61,7 @@ def _run_generation(  # noqa: PLR0913
             api_key=api_key,
             temperature=img_temp,
             save_dir=str(output_dir),
+            model=model,
         )
     except Exception as e:  # noqa: BLE001
         err(f"Image generation failed: {e}")
@@ -84,7 +89,7 @@ def _run_generation(  # noqa: PLR0913
         conn,
         run_id,
         output_image_path=output_path,
-        image_model_name=IMAGE_MODEL,
+        image_model_name=model,
         img_temp=img_temp,
         img_gen_ms=img_gen_ms,
     )
