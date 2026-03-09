@@ -48,3 +48,7 @@ jobs:
       - name: Run Pyrefly check
         run: |
           uv run pyrefly check src
+
+      - name: Run tests
+        run: |
+          uv run pytest tests/

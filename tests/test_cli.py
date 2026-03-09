@@ -51,91 +51,106 @@ def _import_cli(monkeypatch):
     return importlib.import_module("imagemine.cli")
 
 
-def test_add_to_photos_album_imports_before_assigning_album(monkeypatch) -> None:
+# ---------------------------------------------------------------------------
+# _validate_input
+# ---------------------------------------------------------------------------
+
+
+def test_validate_input_returns_resolved_path(monkeypatch, tmp_path) -> None:
     cli = _import_cli(monkeypatch)
-    events = []
-    album = object()
-    log_messages = []
+    img = tmp_path / "photo.jpg"
+    img.write_bytes(b"fake")
+    errors = []
 
-    class FakeLibrary:
-        def album(self, name: str):
-            events.append(("album_lookup", name))
-            return album
+    result = cli._validate_input(str(img), errors.append)
 
-        def import_photos(self, paths, skip_duplicate_check=True):
-            msg = "unexpected import call signature"
-            raise AssertionError(msg)
+    assert result == str(img.resolve())
+    assert errors == []
 
-    photoscript = types.ModuleType("photoscript")
-    photoscript.PhotosLibrary = FakeLibrary
 
-    monkeypatch.setitem(sys.modules, "photoscript", photoscript)
-    sys.modules.pop("osxphotos", None)
-    sys.modules.pop("osxphotos.photosalbum", None)
+def test_validate_input_missing_file_calls_err_and_exits(monkeypatch, tmp_path) -> None:
+    cli = _import_cli(monkeypatch)
+    missing = str(tmp_path / "missing.jpg")
+    errors = []
 
-    def import_photos(self, paths, *, album=None, skip_duplicate_check=True):
-        events.append(("import", list(paths), album, skip_duplicate_check))
-        return [object()]
+    try:
+        cli._validate_input(missing, errors.append)
+    except SystemExit as exc:
+        assert exc.code == 1
+    else:
+        raise AssertionError("expected SystemExit")
 
-    FakeLibrary.import_photos = import_photos
+    assert errors == [f"Input file not found: {missing}"]
 
-    cli._add_to_photos_album(
-        "/tmp/output.png",
-        "Album",
-        log=log_messages.append,
+
+def test_validate_input_directory_calls_err_and_exits(monkeypatch, tmp_path) -> None:
+    cli = _import_cli(monkeypatch)
+    errors = []
+
+    try:
+        cli._validate_input(str(tmp_path), errors.append)
+    except SystemExit as exc:
+        assert exc.code == 1
+    else:
+        raise AssertionError("expected SystemExit")
+
+    assert errors == [f"Not a file: {tmp_path}"]
+
+
+# ---------------------------------------------------------------------------
+# _resolve_input
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_input_uses_image_path(monkeypatch, tmp_path) -> None:
+    cli = _import_cli(monkeypatch)
+    img = tmp_path / "photo.jpg"
+    img.write_bytes(b"fake")
+
+    path, photo_id = cli._resolve_input(
+        str(img), None, log=lambda _: None, err=lambda _: None
     )
 
-    assert events == [
-        ("album_lookup", "Album"),
-        ("import", ["/tmp/output.png"], album, True),
-    ]
+    assert path == str(img.resolve())
+    assert photo_id is None
 
 
-def test_add_to_photos_album_raises_when_album_is_missing(monkeypatch) -> None:
+def test_resolve_input_no_path_no_album_exits(monkeypatch) -> None:
     cli = _import_cli(monkeypatch)
-
-    class FakeLibrary:
-        def album(self, name: str):
-            return None
-
-    photoscript = types.ModuleType("photoscript")
-    photoscript.PhotosLibrary = FakeLibrary
-
-    monkeypatch.setitem(sys.modules, "photoscript", photoscript)
-    sys.modules.pop("osxphotos", None)
-    sys.modules.pop("osxphotos.photosalbum", None)
+    errors = []
 
     try:
-        cli._add_to_photos_album("/tmp/output.png", "Album")
-    except ValueError as exc:
-        assert str(exc) == "Photos album not found: Album"
+        cli._resolve_input(None, None, log=lambda _: None, err=errors.append)
+    except SystemExit as exc:
+        assert exc.code == 1
     else:
-        msg = "expected ValueError"
-        raise AssertionError(msg)
+        raise AssertionError("expected SystemExit")
+
+    assert len(errors) == 1
 
 
-def test_add_to_photos_album_raises_when_import_fails(monkeypatch) -> None:
+def test_resolve_input_image_path_takes_priority_over_album(
+    monkeypatch, tmp_path
+) -> None:
     cli = _import_cli(monkeypatch)
-    album = object()
+    img = tmp_path / "photo.jpg"
+    img.write_bytes(b"fake")
+    album_calls = []
 
-    class FakeLibrary:
-        def album(self, name: str):
-            return album
+    def fake_random_photo(album_name):
+        album_calls.append(album_name)
+        return "/from/album.jpg", "photo-id-123"
 
-        def import_photos(self, paths, *, album=None, skip_duplicate_check=True):
-            return []
+    monkeypatch.setattr(
+        importlib.import_module("imagemine._album"),
+        "_random_photo_from_album",
+        fake_random_photo,
+    )
 
-    photoscript = types.ModuleType("photoscript")
-    photoscript.PhotosLibrary = FakeLibrary
+    path, photo_id = cli._resolve_input(
+        str(img), "MyAlbum", log=lambda _: None, err=lambda _: None
+    )
 
-    monkeypatch.setitem(sys.modules, "photoscript", photoscript)
-    sys.modules.pop("osxphotos", None)
-    sys.modules.pop("osxphotos.photosalbum", None)
-
-    try:
-        cli._add_to_photos_album("/tmp/output.png", "Album")
-    except RuntimeError as exc:
-        assert str(exc) == "Photos import failed for: /tmp/output.png"
-    else:
-        msg = "expected RuntimeError"
-        raise AssertionError(msg)
+    assert path == str(img.resolve())
+    assert photo_id is None
+    assert album_calls == []
