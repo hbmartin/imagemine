@@ -166,4 +166,10 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Save an SVG of the terminal session alongside the generated image",
     )
+    parser.add_argument(
+        "--config-path",
+        default=None,
+        metavar="PATH",
+        help="Path to the imagemine database (default: ~/.imagemine.db)",
+    )
     return parser.parse_args()

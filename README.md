@@ -16,7 +16,7 @@ Transform any photo into a fantastical image. imagemine uses Claude to write a s
 2. Send to Claude Sonnet via the Files API; generate a short surrealist story and image prompt
 3. Pick a random visual style from the built-in style library (or specify one with `--style`)
 4. Pass the story + style + original image to Gemini to generate the fantasy version
-5. Save all run metadata to a local SQLite database (`imagemine.db`)
+5. Save all run metadata to a local SQLite database (`~/.imagemine.db`)
 
 ## Requirements
 
@@ -46,7 +46,7 @@ imagemine path/to/photo.jpg
 
 Keys are resolved in this order on each run:
 
-1. **Database** — stored in `imagemine.db` after first entry
+1. **Database** — stored in `~/.imagemine.db` after first entry
 2. **Environment variables** — `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`
 3. **Interactive prompt** — if neither is found, you are prompted (input is masked) and the value is saved to the database for future runs
 
@@ -60,8 +60,8 @@ export GEMINI_API_KEY=AI...
 To set or update keys directly in the database:
 
 ```sh
-sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('ANTHROPIC_API_KEY', 'sk-ant-...');"
-sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('GEMINI_API_KEY', 'AI...');"
+sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('ANTHROPIC_API_KEY', 'sk-ant-...');"
+sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('GEMINI_API_KEY', 'AI...');"
 ```
 
 ## CLI flags
@@ -79,6 +79,7 @@ sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('GEMINI
 | `--silent`            | off        | Suppress all printed output                              |
 | `--config`            | —          | Interactively configure settings and exit                |
 | `--history`           | —          | Show recent runs as a table and exit                     |
+| `--config-path`       | `~/.imagemine.db` | Path to the SQLite database file                  |
 
 ### Examples
 
@@ -112,6 +113,12 @@ imagemine --history
 
 # Configure API keys and settings interactively
 imagemine --config
+
+# Use a custom database location
+imagemine photo.jpg --config-path ~/work/imagemine.db
+
+# Configure settings into a custom database
+imagemine --config --config-path ~/work/imagemine.db
 ```
 
 ## Styles
@@ -126,17 +133,17 @@ To lock in a style for a run, use `--style`:
 imagemine photo.jpg --style "Risograph Print"
 ```
 
-To add or remove styles, edit the `styles` table in `imagemine.db`:
+To add or remove styles, edit the `styles` table in `~/.imagemine.db`:
 
 ```sh
 # List styles
-sqlite3 imagemine.db "SELECT name FROM styles;"
+sqlite3 ~/.imagemine.db "SELECT name FROM styles;"
 
 # Add a custom style
-sqlite3 imagemine.db "INSERT INTO styles (name, description) VALUES ('Lego Brick', 'Chunky ABS plastic bricks, primary colors, stud texture, classic minifig proportions.');"
+sqlite3 ~/.imagemine.db "INSERT INTO styles (name, description) VALUES ('Lego Brick', 'Chunky ABS plastic bricks, primary colors, stud texture, classic minifig proportions.');"
 
 # Remove a style
-sqlite3 imagemine.db "DELETE FROM styles WHERE name = 'Meme Format';"
+sqlite3 ~/.imagemine.db "DELETE FROM styles WHERE name = 'Meme Format';"
 ```
 
 ## Configuration
@@ -149,10 +156,10 @@ imagemine --config
 
 The wizard walks through each key in order, pre-populates non-secret fields with their current values, and masks API key input. Leaving a field blank keeps the existing value (or skips it if unset).
 
-You can also edit the `config` table in `imagemine.db` directly:
+You can also edit the `config` table in `~/.imagemine.db` directly:
 
 ```sh
-sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<key>', '<value>');"
+sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<key>', '<value>');"
 ```
 
 | Key                 | Description                                                  |
@@ -181,8 +188,8 @@ imagemine --config
 Or set directly in the database:
 
 ```sh
-sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('INPUT_ALBUM', 'Camera Roll');"
-sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('DESTINATION_ALBUM', 'imagemine');"
+sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('INPUT_ALBUM', 'Camera Roll');"
+sqlite3 ~/.imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('DESTINATION_ALBUM', 'imagemine');"
 ```
 
 3. Run imagemine on a schedule via launchd to keep the output album growing. Create `~/Library/LaunchAgents/imagemine.plist`:
@@ -260,7 +267,7 @@ uv run pytest tests/
 
 ### Database
 
-Every run is recorded in `imagemine.db` (created in the working directory). The `runs` table tracks:
+Every run is recorded in `~/.imagemine.db` by default. Use `--config-path` to specify a different location. The `runs` table tracks:
 
 | Column                   | Description                                                  |
 | ------------------------ | ------------------------------------------------------------ |

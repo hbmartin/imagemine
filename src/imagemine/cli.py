@@ -134,7 +134,10 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
     output_dir = pathlib.Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    conn = init_db(DB_PATH)
+    db_path = (
+        pathlib.Path(args.config_path).expanduser() if args.config_path else DB_PATH
+    )
+    conn = init_db(db_path)
 
     if args.history:
         _show_history(conn, console)

@@ -4,7 +4,7 @@ from PIL import Image
 
 DESCRIPTION_MODEL = "claude-sonnet-4-6"
 IMAGE_MODEL = "gemini-3-pro-image-preview"
-DB_PATH = pathlib.Path("imagemine.db")
+DB_PATH = pathlib.Path.home() / ".imagemine.db"
 
 
 def resize_image(
