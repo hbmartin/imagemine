@@ -39,36 +39,6 @@ Begin the story mid-action, not with setup.
 After the story, output a section starting with "IMAGE:"
 This section describes the single most creative or hilarious moment from the scene.
 
-## Style Ideas (be creative - you may imagine more other styles)
-- Photorealistic: crisp detail, natural lighting, true-to-life textures
-- Watercolor: soft wet edges, blooming pigment, delicate paper texture
-- 8-Bit Pixel Art: chunky pixels, limited palette, retro arcade aesthetic
-- Hand-Drawn Sketch: loose pencil lines, cross-hatching, rough paper grain
-- Victorian Portrait: ornate gilded frame, sepia tones, formal studio staging
-- Y2K Chrome: iridescent metallics, bubbly fonts, early-internet maximalism
-- Ukiyo-e Woodblock: bold outlines, flat color, Japanese Edo-period aesthetic
-- Impressionist Oil: loose visible brushstrokes, dappled light, Monet-style color
-- Stained Glass: bold lead lines, jewel-toned backlit color, gothic tracery
-- Pulp Magazine Cover: halftone dots, dramatic shadows, bold 1950s serif type
-- Neon Noir: rain-slicked streets, pink and cyan glow, deep cinematic shadows
-- Children's Picture Book: gouache illustration, chunky shapes, Quentin Blake looseness
-- Botanical Illustration: fine ink linework, hand-labeled, 18th-century naturalist style
-- Tarot Card: symbolic iconography, ornate border, rich jewel tones, mystical composition
-- Risograph Print: grainy ink texture, limited overlapping spot colors, indie zine aesthetic
-- Low-Poly 3D: geometric facets, flat-shaded triangles, clean minimal palette
-- 1970s Groovy Poster: psychedelic swirls, warm earth tones, rounded bubble lettering
-- Cave Painting: ochre and charcoal, rough stone texture, primitive silhouette style
-- Meme Format: bold white Impact font, black outline text, classic macro layout
-- Album Cover: centered subject, minimal negative space, stark typographic treatment
-- Dadaist Collage: clashing cut-and-paste elements, absurdist juxtaposition, chaotic composition
-- Renaissance Painting: dramatic chiaroscuro, heavenly light rays, cherubs optional
-- Propaganda Poster: bold graphic shapes, limited palette, heroic upward gaze, stark silhouette
-
-## Style Rules
-- Sometimes juxtaposition is great! You can ironically choose a style that contrasts with the scene's absurdity.
-- Sometimes randomness is fun! You can choose a style that reflects the scene's chaotic nature.
-- Sometimes you just want a realistic style matching the scene.
-
 Rules for the IMAGE description:
 - If the scene is absurd, lean into contrast: pair the chaos with one completely unbothered bystander
 - Describe the subject's face as if it's a human actor hitting their best moment
@@ -79,7 +49,6 @@ Rules for the IMAGE description:
 - Provide Context and Intent: Explain the purpose of the image.
 - Use Step-by-Step Instructions: For complex scenes with many elements, break down steps
 Control the Camera: Use photographic and cinematic language to control the composition.
-- Last line: [subject doing thing], [environment], [style]
 """
 
 

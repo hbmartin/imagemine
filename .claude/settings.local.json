@@ -4,7 +4,8 @@
       "Bash(uv sync:*)",
       "Bash(uv run:*)",
       "Bash(uv build:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(wc:*)"
     ]
   }
 }

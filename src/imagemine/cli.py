@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from ._album import _add_to_photos_album, _random_photo_from_album
 from ._config import _parse_args, _resolve_api_key, _resolve_option
 from ._core import DB_PATH, resize_image
-from ._db import init_db, insert_run, update_run
+from ._db import init_db, insert_run, random_style, update_run
 from ._describe import _get_description
 from ._generate import _run_generation
 
@@ -70,10 +70,10 @@ def main() -> None:
             conn,
             args.desc_temp,
             "DEFAULT_DESC_TEMP",
-            default=2.0,
+            default=1.0,
             cast=float,
         )
-        or 2.0,
+        or 1.0,
     )
     img_temp = float(
         _resolve_option(
@@ -135,6 +135,17 @@ def main() -> None:
         err=err,
     )
     log(f"\nDescription:\n{description}\n")
+
+    if args.style:
+        style = args.style
+    else:
+        style_name, style_desc = random_style(conn)
+        style = f"{style_name}: {style_desc}" if style_name else None
+
+    if style:
+        log(f"Style: {style}")
+        description = f"{description}\n\nStyle: {style}"
+        update_run(conn, run_id, style=style)
 
     output_path = _run_generation(
         conn,

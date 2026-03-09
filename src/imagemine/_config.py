@@ -85,6 +85,11 @@ def _parse_args() -> argparse.Namespace:
         help="macOS Photos album to import the generated image into (overrides DB)",
     )
     parser.add_argument(
+        "--style",
+        default=None,
+        help="Image style to use (overrides random selection from styles table)",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Ignore cached description and regenerate from scratch",
