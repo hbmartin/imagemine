@@ -360,3 +360,24 @@ def test_main_runs_pipeline_with_resolved_paths(monkeypatch, tmp_path) -> None:
     assert called_conn is fake_conn
     assert isinstance(t_start, float)
     assert output_dir == pathlib.Path(args.output_dir).resolve()
+
+
+def test_main_passes_story_to_pipeline(monkeypatch, tmp_path) -> None:
+    cli = _import_cli(monkeypatch)
+    args = _base_args(tmp_path, story="some story")
+    pipeline_calls = []
+
+    monkeypatch.setattr(cli, "_parse_args", lambda: args)
+    monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
+    monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
+    monkeypatch.setattr(
+        cli,
+        "run_pipeline",
+        lambda *run_args: pipeline_calls.append(run_args),
+    )
+
+    cli.main()
+
+    assert len(pipeline_calls) == 1
+    called_args, *_rest = pipeline_calls[0]
+    assert called_args.story == "some story"

@@ -48,12 +48,13 @@ def _add_to_photos_album(
         raise RuntimeError(msg)
 
 
-def _random_photo_from_album(album_name: str) -> tuple[str, str, pathlib.Path]:
-    """Export a random photo from a macOS Photos album.
+def _random_photo_from_album(
+    album_name: str, max_attempts: int = 10,
+) -> tuple[str, str, pathlib.Path]:
+    """Export a random photo from a macOS Photos album, skipping .mov files.
 
     Returns (exported_file_path, photos_item_id, export_dir).
     """
-    tmp_dir = pathlib.Path(tempfile.mkdtemp(prefix="imagemine_input_"))
     safe_album = _as_escape(album_name)
     script = "\n".join(
         [
@@ -68,27 +69,47 @@ def _random_photo_from_album(album_name: str) -> tuple[str, str, pathlib.Path]:
             "    end if",
             "    set idx to (random number from 1 to (count of theItems)) as integer",
             "    set thePhoto to item idx of theItems",
-            f'    export {{thePhoto}} to POSIX file "{tmp_dir}"',
-            "    return id of thePhoto",
-            "end tell",
         ],
     )
-    result = subprocess.run(
-        ["/usr/bin/osascript", "-e", script],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        msg = (
-            f"Failed to fetch photo from album {album_name!r}: {result.stderr.strip()}"
+
+    for _ in range(max_attempts):
+        tmp_dir = pathlib.Path(tempfile.mkdtemp(prefix="imagemine_input_"))
+        full_script = (
+            script
+            + "\n"
+            + "\n".join(
+                [
+                    f'    export {{thePhoto}} to POSIX file "{tmp_dir}"',
+                    "    return id of thePhoto",
+                    "end tell",
+                ],
+            )
         )
-        raise RuntimeError(msg)
-    files = list(tmp_dir.iterdir())
-    if not files:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        msg = f"No photo exported from album {album_name!r}"
-        raise RuntimeError(msg)
-    photo_id = result.stdout.strip()
-    return str(files[0]), photo_id, tmp_dir
+        result = subprocess.run(
+            ["/usr/bin/osascript", "-e", full_script],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            stderr = result.stderr.strip()
+            msg = f"Failed to fetch photo from album {album_name!r}: {stderr}"
+            raise RuntimeError(msg)
+        files = list(tmp_dir.iterdir())
+        if not files:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            msg = f"No photo exported from album {album_name!r}"
+            raise RuntimeError(msg)
+        exported = files[0]
+        if exported.suffix.lower() == ".mov":
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            continue
+        photo_id = result.stdout.strip()
+        return str(exported), photo_id, tmp_dir
+
+    msg = (
+        f"Could not find a non-video photo in album {album_name!r}"
+        f" after {max_attempts} attempts"
+    )
+    raise RuntimeError(msg)

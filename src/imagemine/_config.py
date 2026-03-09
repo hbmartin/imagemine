@@ -206,7 +206,7 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         metavar="TEXT",
         help=(
-            "Background context appended to the Claude prompt"
+            "Background context prepended to the Claude prompt"
             " when generating the image description"
         ),
     )

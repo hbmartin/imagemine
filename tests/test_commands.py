@@ -47,11 +47,12 @@ def test_dispatch_subcommand_launchd_zero_prompts(monkeypatch) -> None:
 
 def test_dispatch_subcommand_launchd_negative_exits() -> None:
     errors = []
+    conn = object()
 
     with pytest.raises(SystemExit) as exc_info:
         commands.dispatch_subcommand(
             _base_args(launchd=-1),
-            conn="db-conn",
+            conn=conn,
             console=object(),
             err=errors.append,
         )
