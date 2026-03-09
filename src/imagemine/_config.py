@@ -99,4 +99,9 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Suppress all output",
     )
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        help="Show recent runs as a table and exit",
+    )
     return parser.parse_args()

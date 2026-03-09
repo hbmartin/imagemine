@@ -138,6 +138,10 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
             description TEXT NOT NULL
         )
     """)
+    with contextlib.suppress(sqlite3.OperationalError):
+        conn.execute(
+            "ALTER TABLE styles ADD COLUMN used_count INTEGER NOT NULL DEFAULT 0",
+        )
     conn.executemany(
         "INSERT OR IGNORE INTO styles (name, description) VALUES (?, ?)",
         STYLES,
@@ -201,6 +205,25 @@ def lookup_description(conn: sqlite3.Connection, input_file_path: str) -> str | 
         (input_file_path,),
     ).fetchone()
     return row[0] if row else None
+
+
+def get_recent_runs(
+    conn: sqlite3.Connection,
+    limit: int = 20,
+) -> list[tuple[str | None, ...]]:
+    """Return the most recent runs for display, newest first."""
+    return conn.execute(
+        "SELECT started_at, input_file_path, style, desc_gen_ms, img_gen_ms, output_image_path "
+        "FROM runs ORDER BY id DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+
+
+def increment_style_count(conn: sqlite3.Connection, name: str) -> None:
+    conn.execute(
+        "UPDATE styles SET used_count = used_count + 1 WHERE name = ?", (name,),
+    )
+    conn.commit()
 
 
 def random_style(conn: sqlite3.Connection) -> tuple[str, str] | tuple[None, None]:
