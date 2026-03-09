@@ -2,7 +2,6 @@
 
 import pathlib
 import sys
-import threading
 import time
 from typing import TYPE_CHECKING
 
@@ -210,8 +209,6 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     # ── Step 3: Describe ──────────────────────────────────────────────────
     console.rule("[dim]Describe[/]", style="dim")
-    _desc_result: list[str | None] = [None]
-    _desc_exit: list[int | None] = [None]
 
     with Progress(
         SpinnerColumn(spinner_name="moon"),
@@ -225,32 +222,17 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         def log_describe(msg: str) -> None:
             progress.update(task, description=f"[bold cyan]{msg}")
 
-        def _describe_worker() -> None:
-            try:
-                _desc_result[0] = _get_description(
-                    conn,
-                    run_id,
-                    image,
-                    input_path,
-                    desc_temp,
-                    anthropic_api_key,
-                    force=args.force,
-                    log=log_describe,
-                    err=err,
-                )
-            except SystemExit as exc:
-                _desc_exit[0] = int(exc.code) if exc.code is not None else 1
-
-        t = threading.Thread(target=_describe_worker, daemon=True)
-        t.start()
-        t.join()
-
-    if _desc_exit[0] is not None:
-        sys.exit(_desc_exit[0])
-    if _desc_result[0] is None:
-        err("Description generation returned no result.")
-        sys.exit(1)
-    description = _desc_result[0]
+        description = _get_description(
+            conn,
+            run_id,
+            image,
+            input_path,
+            desc_temp,
+            anthropic_api_key,
+            force=args.force,
+            log=log_describe,
+            err=err,
+        )
 
     console.print(
         Panel(
@@ -286,8 +268,6 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     # ── Step 5: Generate ──────────────────────────────────────────────────
     console.rule("[dim]Generate[/]", style="dim")
-    _gen_result: list[str | None] = [None]
-    _gen_exit: list[int | None] = [None]
 
     with Progress(
         SpinnerColumn(spinner_name="arc"),
@@ -301,32 +281,17 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         def log_generate(msg: str) -> None:
             progress.update(task, description=f"[bold yellow]{msg}")
 
-        def _generate_worker() -> None:
-            try:
-                _gen_result[0] = _run_generation(
-                    conn,
-                    run_id,
-                    description,
-                    image,
-                    img_temp,
-                    gemini_api_key,
-                    output_dir,
-                    log=log_generate,
-                    err=err,
-                )
-            except SystemExit as exc:
-                _gen_exit[0] = int(exc.code) if exc.code is not None else 1
-
-        t = threading.Thread(target=_generate_worker, daemon=True)
-        t.start()
-        t.join()
-
-    if _gen_exit[0] is not None:
-        sys.exit(_gen_exit[0])
-    if _gen_result[0] is None:
-        err("Image generation returned no result.")
-        sys.exit(1)
-    output_path = _gen_result[0]
+        output_path = _run_generation(
+            conn,
+            run_id,
+            description,
+            image,
+            img_temp,
+            gemini_api_key,
+            output_dir,
+            log=log_generate,
+            err=err,
+        )
 
     resized_path.unlink(missing_ok=True)
 
