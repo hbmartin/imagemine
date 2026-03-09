@@ -86,6 +86,7 @@ imagemine --config
 | `--img-temp`          | DB / `1.0` | Sampling temperature for Gemini image generation         |
 | `--story TEXT`        | —          | Background context prepended to the Claude prompt when generating the image description             |
 | `--style PROMPT`      | —          | Use PROMPT as the style instead of a randomly selected one from the database                        |
+| `--fresh`             | off        | Pick style randomly from the least-used styles (ignored when `--style` is given)                    |
 | `--list-styles`       | —          | Show all styles in the database as a table and exit      |
 | `--add-style`         | —          | Interactively add a new style to the database and exit   |
 | `--remove-style`      | —          | Interactively select and remove styles from the database and exit |

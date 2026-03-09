@@ -124,10 +124,6 @@ STYLES = [
         "flowing organic lines, intricate floral motifs, elegant curves, Alphonse Mucha elegance",
     ),
     (
-        "Celtic Knot",
-        "interwoven patterns, infinite loops, illuminated manuscript borders, medieval symbolism",
-    ),
-    (
         "Comic Strip",
         "paneled layout, speech bubbles, bold onomatopoeia, sequential storytelling",
     ),
@@ -177,6 +173,18 @@ STYLES = [
 def random_style(conn: sqlite3.Connection) -> tuple[str, str] | tuple[None, None]:
     row = conn.execute(
         "SELECT name, description FROM styles ORDER BY RANDOM() LIMIT 1",
+    ).fetchone()
+    if row:
+        return row[0], row[1]
+    return None, None
+
+
+def least_used_style(conn: sqlite3.Connection) -> tuple[str, str] | tuple[None, None]:
+    """Return a random style from those with the lowest used_count."""
+    row = conn.execute(
+        "SELECT name, description FROM styles"
+        " WHERE used_count = (SELECT MIN(used_count) FROM styles)"
+        " ORDER BY RANDOM() LIMIT 1",
     ).fetchone()
     if row:
         return row[0], row[1]

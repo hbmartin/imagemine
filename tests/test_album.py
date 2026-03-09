@@ -38,6 +38,7 @@ def test_random_photo_from_album_cleans_up_temp_dir_on_failure(monkeypatch, tmp_
 
 def test_random_photo_from_album_skips_mov(monkeypatch, tmp_path):
     call_count = 0
+    run_calls = 0
 
     def fake_mkdtemp(*_args, **_kwargs):
         nonlocal call_count
@@ -47,6 +48,8 @@ def test_random_photo_from_album_skips_mov(monkeypatch, tmp_path):
         return str(path)
 
     def fake_run(*_args, **_kwargs):
+        nonlocal run_calls
+        run_calls += 1
         return subprocess.CompletedProcess(
             args=["osascript"],
             returncode=0,
@@ -57,11 +60,16 @@ def test_random_photo_from_album_skips_mov(monkeypatch, tmp_path):
     monkeypatch.setattr("imagemine._album.tempfile.mkdtemp", fake_mkdtemp)
     monkeypatch.setattr("imagemine._album.subprocess.run", fake_run)
 
-    # First call produces a .mov; second produces a .jpg
+    # First export contains both Live Photo artifacts; second produces a .jpg.
     def side_effect_iterdir(self):
         n = int(self.name.split("_")[-1])
-        ext = ".mov" if n == 1 else ".jpg"
-        p = self / f"photo{ext}"
+        if n == 1:
+            mov = self / "photo.mov"
+            jpg = self / "photo.jpg"
+            mov.touch()
+            jpg.touch()
+            return iter([mov, jpg])
+        p = self / "photo.jpg"
         p.touch()
         return iter([p])
 
@@ -69,15 +77,16 @@ def test_random_photo_from_album_skips_mov(monkeypatch, tmp_path):
 
     file_path, photo_id, export_dir = _random_photo_from_album("Album")
 
-    assert call_count == 2
+    assert call_count == 1
+    assert run_calls == 1
     assert file_path.endswith(".jpg")
-    assert photo_id == "photo-id-2"
-    assert not (tmp_path / "imagemine_input_1").exists()
+    assert photo_id == "photo-id-1"
     assert export_dir.exists()
 
 
 def test_random_photo_from_album_raises_after_max_mov_attempts(monkeypatch, tmp_path):
     call_count = 0
+    run_calls = 0
 
     def fake_mkdtemp(*_args, **_kwargs):
         nonlocal call_count
@@ -86,13 +95,15 @@ def test_random_photo_from_album_raises_after_max_mov_attempts(monkeypatch, tmp_
         path.mkdir()
         return str(path)
 
-    monkeypatch.setattr("imagemine._album.tempfile.mkdtemp", fake_mkdtemp)
-    monkeypatch.setattr(
-        "imagemine._album.subprocess.run",
-        lambda *_a, **_k: subprocess.CompletedProcess(
+    def fake_run(*_a, **_k):
+        nonlocal run_calls
+        run_calls += 1
+        return subprocess.CompletedProcess(
             args=["osascript"], returncode=0, stdout="photo-id", stderr=""
-        ),
-    )
+        )
+
+    monkeypatch.setattr("imagemine._album.tempfile.mkdtemp", fake_mkdtemp)
+    monkeypatch.setattr("imagemine._album.subprocess.run", fake_run)
 
     def always_mov(self):
         p = self / "clip.mov"
@@ -105,3 +116,4 @@ def test_random_photo_from_album_raises_after_max_mov_attempts(monkeypatch, tmp_
         _random_photo_from_album("Album", max_attempts=3)
 
     assert call_count == 3
+    assert run_calls == 3
