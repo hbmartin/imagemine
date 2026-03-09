@@ -25,14 +25,21 @@ Transform any photo into a fantastical image. imagemine uses Claude to write a s
 - An [Anthropic API key](https://console.anthropic.com/)
 - A [Google Gemini API key](https://aistudio.google.com/apikey)
 
-## Setup
+## Quick Start
 
 ```sh
 uvx imagemine path/to/photo.jpg
 ```
 
+The generated image is saved to the current directory. The story and image prompt are printed to stderr; the output file path is printed to stdout.
+
+### Installing
+
+To use imagemine without invoking uvx, permanently install it as:
+
 ```sh
-uv run imagemine path/to/photo.jpg
+curl -LsSf uvx.sh/imagemine/install.sh | sh
+imagemine path/to/photo.jpg
 ```
 
 ## API keys
@@ -57,27 +64,19 @@ sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('ANTHRO
 sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('GEMINI_API_KEY', 'AI...');"
 ```
 
-## Usage
+## CLI flags
 
-```sh
-imagemine path/to/photo.jpg
-```
-
-The generated image is saved to the current directory. The story and image prompt are printed to stderr; the output file path is printed to stdout.
-
-### CLI flags
-
-| Flag | Default | Description |
-|---|---|---|
-| `image_path` | — | Path to input image (omit to use `--input-album`) |
-| `--input-album` | DB / env | macOS Photos album to pick a random input image from |
-| `--output-dir` | `.` | Directory to save the generated image |
-| `--desc-temp` | DB / `1.0` | Sampling temperature for Claude description generation |
-| `--img-temp` | DB / `1.0` | Sampling temperature for Gemini image generation |
-| `--style` | random | Visual style to apply (overrides random style selection) |
-| `--destination-album` | DB / env | macOS Photos album to import the generated image into |
-| `--force` | off | Ignore cached description and regenerate from scratch |
-| `--silent` | off | Suppress all printed output |
+| Flag                  | Default    | Description                                              |
+| --------------------- | ---------- | -------------------------------------------------------- |
+| `image_path`          | —          | Path to input image (omit to use `--input-album`)        |
+| `--input-album`       | DB / env   | macOS Photos album to pick a random input image from     |
+| `--output-dir`        | `.`        | Directory to save the generated image                    |
+| `--desc-temp`         | DB / `1.0` | Sampling temperature for Claude description generation   |
+| `--img-temp`          | DB / `1.0` | Sampling temperature for Gemini image generation         |
+| `--style`             | random     | Visual style to apply (overrides random style selection) |
+| `--destination-album` | DB / env   | macOS Photos album to import the generated image into    |
+| `--force`             | off        | Ignore cached description and regenerate from scratch    |
+| `--silent`            | off        | Suppress all printed output                              |
 
 ### Examples
 
@@ -140,14 +139,14 @@ All configuration is stored in the `config` table of `imagemine.db`. Use `INSERT
 sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<key>', '<value>');"
 ```
 
-| Key | Description |
-|---|---|
-| `ANTHROPIC_API_KEY` | Anthropic API key (checked before env var) |
-| `GEMINI_API_KEY` | Google Gemini API key (checked before env var) |
+| Key                 | Description                                                  |
+| ------------------- | ------------------------------------------------------------ |
+| `ANTHROPIC_API_KEY` | Anthropic API key (checked before env var)                   |
+| `GEMINI_API_KEY`    | Google Gemini API key (checked before env var)               |
 | `DEFAULT_DESC_TEMP` | Default sampling temperature for description generation (e.g. `1.2`) |
-| `DEFAULT_IMG_TEMP` | Default sampling temperature for image generation (e.g. `0.8`) |
-| `INPUT_ALBUM` | macOS Photos album to pick a random input image from |
-| `DESTINATION_ALBUM` | macOS Photos album name to import generated images into |
+| `DEFAULT_IMG_TEMP`  | Default sampling temperature for image generation (e.g. `0.8`) |
+| `INPUT_ALBUM`       | macOS Photos album to pick a random input image from         |
+| `DESTINATION_ALBUM` | macOS Photos album name to import generated images into      |
 
 ## Apple TV screensaver
 
@@ -164,11 +163,39 @@ sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('INPUT_
 sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('DESTINATION_ALBUM', 'imagemine');"
 ```
 
-3. Run imagemine on a schedule (e.g. via cron) to keep the output album growing:
+3. Run imagemine on a schedule via launchd to keep the output album growing. Create `~/Library/LaunchAgents/imagemine.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>imagemine</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/path/to/uv</string>
+        <string>run</string>
+        <string>--project</string>
+        <string>/path/to/project</string>
+        <string>imagemine</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>1800</integer>
+    <key>StandardOutPath</key>
+    <string>/tmp/imagemine.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/imagemine.log</string>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+```
+
+Then load it:
 
 ```sh
-# Add a new fantasy image every 30 minutes
-*/30 * * * * cd /path/to/project && uv run imagemine >> /tmp/imagemine.log 2>&1
+launchctl load ~/Library/LaunchAgents/imagemine.plist
 ```
 
 ### Setting the screensaver on Apple TV
@@ -189,6 +216,12 @@ cd imagemine
 uv sync --dev
 ```
 
+To run from the local source:
+
+```sh
+uv run imagemine path/to/photo.jpg
+```
+
 Run the linters and type checker:
 
 ```sh
@@ -203,40 +236,25 @@ Run the tests:
 uv run pytest tests/
 ```
 
-### Project layout
-
-```
-src/
-  imagemine/
-    _album.py      # macOS Photos integration (input/output album via osascript)
-    _config.py     # argument parsing and config resolution
-    _core.py       # constants and image resizing
-    _db.py         # SQLite helpers (runs, styles, and config tables)
-    _describe.py   # Claude description generation
-    _generate.py   # Gemini image generation
-    cli.py         # pipeline orchestration entry point
-    __main__.py    # python -m imagemine entry point
-```
-
 ### Database
 
 Every run is recorded in `imagemine.db` (created in the working directory). The `runs` table tracks:
 
-| Column | Description |
-|---|---|
-| `started_at` | UTC timestamp when the run began |
-| `input_file_path` | Absolute path to the source image |
-| `resized_file_path` | Path to the temporary resized JPEG (deleted after generation) |
-| `generated_description` | Story + image prompt from Claude |
-| `description_model_name` | Claude model used |
-| `desc_temp` | Temperature used for description generation |
-| `desc_gen_ms` | Description generation time in milliseconds |
-| `output_image_path` | Path to the generated image |
-| `image_model_name` | Gemini model used |
-| `img_temp` | Temperature used for image generation |
-| `img_gen_ms` | Image generation time in milliseconds |
-| `input_album_photo_id` | Photos item ID when input was selected from an album |
-| `style` | Visual style applied to the image prompt |
+| Column                   | Description                                                  |
+| ------------------------ | ------------------------------------------------------------ |
+| `started_at`             | UTC timestamp when the run began                             |
+| `input_file_path`        | Absolute path to the source image                            |
+| `resized_file_path`      | Path to the temporary resized JPEG (deleted after generation) |
+| `generated_description`  | Story + image prompt from Claude                             |
+| `description_model_name` | Claude model used                                            |
+| `desc_temp`              | Temperature used for description generation                  |
+| `desc_gen_ms`            | Description generation time in milliseconds                  |
+| `output_image_path`      | Path to the generated image                                  |
+| `image_model_name`       | Gemini model used                                            |
+| `img_temp`               | Temperature used for image generation                        |
+| `img_gen_ms`             | Image generation time in milliseconds                        |
+| `input_album_photo_id`   | Photos item ID when input was selected from an album         |
+| `style`                  | Visual style applied to the image prompt                     |
 
 If a source image path already has a description stored, Claude is skipped and the cached description is reused. Use `--force` to bypass this.
 
