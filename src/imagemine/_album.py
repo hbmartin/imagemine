@@ -5,25 +5,37 @@ import subprocess
 import tempfile
 
 
+def _as_escape(s: str) -> str:
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _add_to_photos_album(
     output_path: str,
     album_name: str,
+    description: str = "",
 ) -> None:
     """Import a file into macOS Photos and add it to the named album."""
-    safe_album = album_name.replace("\\", "\\\\").replace('"', '\\"')
-    safe_path = output_path.replace("\\", "\\\\").replace('"', '\\"')
-    script = "\n".join(
-        [
-            'tell application "Photos"',
-            f'    set theAlbums to every album whose name is "{safe_album}"',
-            "    if (count of theAlbums) = 0 then",
-            f'        error "Photos album not found: {safe_album}"',
+    safe_album = _as_escape(album_name)
+    safe_path = _as_escape(output_path)
+    safe_desc = _as_escape(description)
+    script_lines = [
+        'tell application "Photos"',
+        f'    set theAlbums to every album whose name is "{safe_album}"',
+        "    if (count of theAlbums) = 0 then",
+        f'        error "Photos album not found: {safe_album}"',
+        "    end if",
+        f'    set importedItems to (import {{POSIX file "{safe_path}"}} '
+        "into (first item of theAlbums) skip check duplicates yes)",
+    ]
+    if safe_desc:
+        script_lines += [
+            "    if (count of importedItems) > 0 then",
+            "        set description of (first item of importedItems)"
+            f' to "{safe_desc}"',
             "    end if",
-            f'    import {{POSIX file "{safe_path}"}} '
-            "into (first item of theAlbums) skip check duplicates yes",
-            "end tell",
-        ],
-    )
+        ]
+    script_lines.append("end tell")
+    script = "\n".join(script_lines)
     result = subprocess.run(  # noqa: S603
         ["/usr/bin/osascript", "-e", script],
         capture_output=True,
@@ -41,7 +53,7 @@ def _random_photo_from_album(album_name: str) -> tuple[str, str]:
     Returns (exported_file_path, photos_item_id).
     """
     tmp_dir = tempfile.mkdtemp(prefix="imagemine_input_")
-    safe_album = album_name.replace("\\", "\\\\").replace('"', '\\"')
+    safe_album = _as_escape(album_name)
     script = "\n".join(
         [
             'tell application "Photos"',

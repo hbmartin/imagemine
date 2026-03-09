@@ -182,10 +182,10 @@ def random_style(conn: sqlite3.Connection) -> tuple[str, str] | tuple[None, None
     return None, None
 
 
-def get_all_styles(conn: sqlite3.Connection) -> list[tuple[str, str, int]]:
-    """Return all styles as (name, description, used_count) sorted by name."""
+def get_all_styles(conn: sqlite3.Connection) -> list[tuple[str, str, int, str]]:
+    """Return all styles as (name, description, used_count, created_at) sorted by name."""  # noqa: E501
     return conn.execute(
-        "SELECT name, description, used_count FROM styles ORDER BY name",
+        "SELECT name, description, used_count, created_at FROM styles ORDER BY name",
     ).fetchall()
 
 

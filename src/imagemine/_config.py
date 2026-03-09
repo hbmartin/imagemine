@@ -1,10 +1,11 @@
 """CLI argument parsing and config resolution."""
 
+from __future__ import annotations
+
 import argparse
 import os
 import sys
-from collections.abc import Callable
-from typing import TYPE_CHECKING, TypeVar, overload
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -14,8 +15,7 @@ from ._db import get_config, set_config
 
 if TYPE_CHECKING:
     import sqlite3
-
-T = TypeVar("T")
+    from collections.abc import Callable
 
 
 def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
@@ -37,29 +37,7 @@ def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
     return value
 
 
-@overload
-def _resolve_option(
-    conn: sqlite3.Connection,
-    cli_value: str | None,
-    config_key: str,
-    *,
-    env_key: str | None = None,
-    cast: Callable[[str], str] = str,
-) -> str | None: ...
-
-
-@overload
-def _resolve_option(
-    conn: sqlite3.Connection,
-    cli_value: T | None,
-    config_key: str,
-    *,
-    env_key: str | None = None,
-    cast: Callable[[str], T],
-) -> T | None: ...
-
-
-def _resolve_option(
+def _resolve_option[T = str](
     conn: sqlite3.Connection,
     cli_value: T | None,
     config_key: str,
@@ -80,31 +58,7 @@ def _resolve_option(
     return None
 
 
-@overload
-def _resolve_required_option(
-    conn: sqlite3.Connection,
-    cli_value: str | None,
-    config_key: str,
-    *,
-    env_key: str | None = None,
-    default: str,
-    cast: Callable[[str], str] = str,
-) -> str: ...
-
-
-@overload
-def _resolve_required_option(
-    conn: sqlite3.Connection,
-    cli_value: T | None,
-    config_key: str,
-    *,
-    env_key: str | None = None,
-    default: T,
-    cast: Callable[[str], T],
-) -> T: ...
-
-
-def _resolve_required_option(
+def _resolve_required_option[T = str](  # noqa: PLR0913
     conn: sqlite3.Connection,
     cli_value: T | None,
     config_key: str,

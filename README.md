@@ -75,7 +75,6 @@ imagemine --config
 | `--list-styles`       | —          | Show all styles in the database as a table and exit      |
 | `--add-style`         | —          | Interactively add a new style to the database and exit   |
 | `--destination-album` | DB / env   | macOS Photos album to import the generated image into    |
-| `--force`             | off        | Ignore cached description and regenerate from scratch    |
 | `--silent`            | off        | Suppress all printed output                              |
 | `--config`            | —          | Interactively configure settings and exit                |
 | `--history`           | —          | Show recent runs as a table and exit                     |
@@ -105,9 +104,6 @@ imagemine --list-styles
 
 # Add a new style interactively
 imagemine --add-style
-
-# Re-run on the same photo, ignoring the cached description
-imagemine photo.jpg --force
 
 # Silent mode — no output, just runs and records to DB
 imagemine photo.jpg --silent
@@ -283,7 +279,7 @@ Every run is recorded in `~/.imagemine.db` by default. Use `--config-path` to sp
 | `input_album_photo_id`   | Photos item ID when input was selected from an album         |
 | `style`                  | Visual style applied to the image prompt                     |
 
-If a source image path already has a description stored, Claude is skipped and the cached description is reused. Use `--force` to bypass this.
+A new description is generated from Claude on every run.
 
 ### Terminal UI
 
