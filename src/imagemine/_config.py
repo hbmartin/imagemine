@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.prompt import Prompt
 from rich.rule import Rule
 
-from ._db import add_style, get_config, set_config
+from ._db import get_config, set_config
 
 if TYPE_CHECKING:
     import sqlite3
@@ -100,25 +100,6 @@ def _run_config_wizard(conn: sqlite3.Connection) -> None:
     console.print(Rule("[dim]done[/]"))
 
 
-def _run_add_style(conn: sqlite3.Connection) -> None:
-    """Interactively prompt for a new style name and description, then save it."""
-    console = Console()
-    console.print(Rule("[bold magenta]Add style[/]"))
-
-    name = Prompt.ask("[bold]Style name[/]")
-    if not name.strip():
-        console.print("[bold red]Error:[/] Name is required.")
-        sys.exit(1)
-
-    description = Prompt.ask("[bold]Style description / prompt[/]")
-    if not description.strip():
-        console.print("[bold red]Error:[/] Description is required.")
-        sys.exit(1)
-
-    add_style(conn, name.strip(), description.strip())
-    console.print(f"\n  [green]✓[/] Style [magenta]{name.strip()}[/] saved.")
-
-
 def _parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -206,5 +187,18 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         metavar="PATH",
         help="Path to the imagemine database (default: ~/.imagemine.db)",
+    )
+    parser.add_argument(
+        "--launchd",
+        nargs="?",
+        const=0,
+        type=int,
+        metavar="MINUTES",
+        help=(
+            "Write a launchd plist to ~/Library/LaunchAgents/imagemine.plist"
+            " that runs imagemine on the given interval (in minutes)."
+            " If MINUTES is omitted you will be prompted. Prints the launchctl"
+            " command to activate the agent."
+        ),
     )
     return parser.parse_args()

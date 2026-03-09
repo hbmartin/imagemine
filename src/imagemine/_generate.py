@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING
 
 from gemimg import GemImg
 
-from ._core import IMAGE_MODEL
+from ._constants import DEFAULT_IMAGE_MODEL
 from ._db import avg_duration_ms, update_run
+from ._image import write_png_metadata
 
-DEFAULT_MODEL = IMAGE_MODEL
+DEFAULT_MODEL = DEFAULT_IMAGE_MODEL
 
 if TYPE_CHECKING:
     import sqlite3
@@ -84,6 +85,8 @@ def _run_generation(  # noqa: PLR0913
     if not pathlib.Path(output_path).exists():
         err(f"Generated image not found at expected path: {output_path}")
         sys.exit(1)
+
+    write_png_metadata(output_path, description)
 
     update_run(
         conn,

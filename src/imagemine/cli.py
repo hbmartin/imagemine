@@ -15,25 +15,19 @@ from rich.text import Text
 from rich.tree import Tree
 
 from ._album import _add_to_photos_album, _random_photo_from_album
-from ._config import (
-    _parse_args,
-    _resolve_api_key,
-    _resolve_option,
-    _run_add_style,
-    _run_config_wizard,
-)
-from ._core import DB_PATH, DESCRIPTION_MODEL, IMAGE_MODEL, resize_image
-from ._db import (
-    get_all_styles,
-    get_recent_runs,
-    increment_style_count,
-    init_db,
-    insert_run,
-    random_style,
-    update_run,
-)
+from ._config import _parse_args, _resolve_api_key, _resolve_option, _run_config_wizard
+from ._constants import DEFAULT_DB_PATH, DEFAULT_DESCRIPTION_MODEL, DEFAULT_IMAGE_MODEL
+from ._db import get_recent_runs, init_db, insert_run, update_run
 from ._describe import _get_description
 from ._generate import _run_generation
+from ._image import resize_image
+from ._launchd import _write_launchd_plist
+from ._styles import (
+    _run_add_style,
+    get_all_styles,
+    increment_style_count,
+    random_style,
+)
 
 if TYPE_CHECKING:
     import sqlite3
@@ -160,7 +154,9 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
     output_dir.mkdir(parents=True, exist_ok=True)
 
     db_path = (
-        pathlib.Path(args.config_path).expanduser() if args.config_path else DB_PATH
+        pathlib.Path(args.config_path).expanduser()
+        if args.config_path
+        else DEFAULT_DB_PATH
     )
     conn = init_db(db_path)
 
@@ -178,6 +174,13 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     if args.add_style:
         _run_add_style(conn)
+        return
+
+    if args.launchd is not None:
+        _write_launchd_plist(
+            config_path=args.config_path,
+            interval_minutes=args.launchd if args.launchd > 0 else None,
+        )
         return
 
     desc_temp = float(
@@ -218,9 +221,9 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             None,
             "CLAUDE_MODEL",
             env_key="CLAUDE_MODEL",
-            default=DESCRIPTION_MODEL,
+            default=DEFAULT_DESCRIPTION_MODEL,
         )
-        or DESCRIPTION_MODEL,
+        or DEFAULT_DESCRIPTION_MODEL,
     )
     gemini_model = str(
         _resolve_option(
@@ -228,9 +231,9 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             None,
             "GEMINI_MODEL",
             env_key="GEMINI_MODEL",
-            default=IMAGE_MODEL,
+            default=DEFAULT_IMAGE_MODEL,
         )
-        or IMAGE_MODEL,
+        or DEFAULT_IMAGE_MODEL,
     )
     anthropic_api_key = _resolve_api_key(
         conn,

@@ -1,10 +1,13 @@
 import pathlib
 
-from PIL import Image
+from PIL import Image, PngImagePlugin
 
-DESCRIPTION_MODEL = "claude-sonnet-4-6"
-IMAGE_MODEL = "gemini-3-pro-image-preview"
-DB_PATH = pathlib.Path.home() / ".imagemine.db"
+
+def write_png_metadata(path: str, description: str) -> None:
+    img = Image.open(path)
+    png_info = PngImagePlugin.PngInfo()
+    png_info.add_text("Description", description)
+    img.save(path, pnginfo=png_info)
 
 
 def resize_image(

@@ -21,7 +21,6 @@ Transform any photo into a fantastical image. imagemine uses Claude to write a s
 ## Requirements
 
 - Python 3.14+
-- [uv](https://docs.astral.sh/uv/)
 - An [Anthropic API key](https://console.anthropic.com/)
 - A [Google Gemini API key](https://aistudio.google.com/apikey)
 
@@ -81,6 +80,7 @@ imagemine --config
 | `--config`            | —          | Interactively configure settings and exit                |
 | `--history`           | —          | Show recent runs as a table and exit                     |
 | `--config-path`       | `~/.imagemine.db` | Path to the SQLite database file                  |
+| `--launchd [MINUTES]` | —          | Write a launchd plist to `~/Library/LaunchAgents/imagemine.plist` that runs imagemine on the given interval; omit `MINUTES` to be prompted. Prints the `launchctl` command to activate it. |
 
 ### Examples
 
@@ -200,36 +200,26 @@ You can use imagemine to generate a living screensaver on Apple TV by continuous
 imagemine --config
 ```
 
-3. Run imagemine on a schedule via launchd to keep the output album growing. Create `~/Library/LaunchAgents/imagemine.plist`:
+3. Run imagemine on a schedule via launchd to keep the output album growing. Use the `--launchd` flag to write the agent configuration automatically:
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>imagemine</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/path/to/uv</string>
-        <string>run</string>
-        <string>--project</string>
-        <string>/path/to/project</string>
-        <string>imagemine</string>
-    </array>
-    <key>StartInterval</key>
-    <integer>1800</integer>
-    <key>StandardOutPath</key>
-    <string>/tmp/imagemine.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/imagemine.log</string>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
+```sh
+imagemine --launchd 30
 ```
 
-Then load it:
+Pass a number of minutes as the argument. If you omit it, imagemine will prompt you:
+
+```sh
+imagemine --launchd
+# Run interval (minutes): 30
+```
+
+Both commands write `~/Library/LaunchAgents/imagemine.plist` and print the `launchctl` command to activate it. Pass `--config-path` to use a non-default database location:
+
+```sh
+imagemine --launchd 30 --config-path ~/work/imagemine.db
+```
+
+Then follow the printed instructions to load the agent:
 
 ```sh
 launchctl load ~/Library/LaunchAgents/imagemine.plist
