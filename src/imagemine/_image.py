@@ -1,10 +1,11 @@
 import pathlib
+from typing import Any
 
 from PIL import Image, PngImagePlugin
 
 
-def _png_save_metadata(img: Image.Image) -> dict[str, object]:
-    save_metadata: dict[str, object] = {}
+def _png_save_metadata(img: Image.Image) -> dict[str, Any]:
+    save_metadata: dict[str, Any] = {}
     for key in ("dpi", "icc_profile", "exif", "transparency"):
         value = img.info.get(key)
         if value is not None:
