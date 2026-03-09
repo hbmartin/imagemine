@@ -130,7 +130,7 @@ def _get_description(  # noqa: PLR0913
             api_key=api_key,
             model=model,
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         err(f"Description generation failed: {e}")
         sys.exit(1)
     desc_gen_ms = round((time.monotonic() - t0) * 1000)

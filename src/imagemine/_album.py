@@ -36,7 +36,7 @@ def _add_to_photos_album(
         ]
     script_lines.append("end tell")
     script = "\n".join(script_lines)
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         ["/usr/bin/osascript", "-e", script],
         capture_output=True,
         text=True,
@@ -72,7 +72,7 @@ def _random_photo_from_album(album_name: str) -> tuple[str, str]:
             "end tell",
         ],
     )
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         ["/usr/bin/osascript", "-e", script],
         capture_output=True,
         text=True,

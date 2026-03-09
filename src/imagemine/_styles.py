@@ -81,11 +81,11 @@ STYLES = [
     ),
     (
         "Paper Cutout",
-        "Layered cardstock, distinct physical depth, soft top-down shadows, craft-store aesthetic.",  # noqa: E501
+        "Layered cardstock, distinct physical depth, soft top-down shadows, craft-store aesthetic.",
     ),
     (
         "Needle Felted",
-        "Fuzzy wool textures, soft organic shapes, matte fibrous surface, handcrafted toy vibe.",  # noqa: E501
+        "Fuzzy wool textures, soft organic shapes, matte fibrous surface, handcrafted toy vibe.",
     ),
     (
         "Art Deco Travel Poster",
@@ -93,39 +93,39 @@ STYLES = [
     ),
     (
         "Bauhaus",
-        'Primary colors (red, blue, yellow), rigid geometric shapes, functional minimalism, "San-Serif" influence.',  # noqa: E501
+        'Primary colors (red, blue, yellow), rigid geometric shapes, functional minimalism, "San-Serif" influence.',
     ),
     (
         "Fauvism",
-        "Non-naturalistic wild colors, thick painterly brushstrokes, emotional intensity over realism.",  # noqa: E501
+        "Non-naturalistic wild colors, thick painterly brushstrokes, emotional intensity over realism.",
     ),
     (
         "Vaporwave",
-        "80s marble statues, glitchy VHS artifacts, pastel sunsets, 90s shopping mall nostalgia.",  # noqa: E501
+        "80s marble statues, glitchy VHS artifacts, pastel sunsets, 90s shopping mall nostalgia.",
     ),
     (
         "Isometric Voxel Art",
-        '3D pixel cubes, "Crossy Road" perspective, clean grid alignment, toy-like miniature world.',  # noqa: E501
+        '3D pixel cubes, "Crossy Road" perspective, clean grid alignment, toy-like miniature world.',
     ),
     (
         "Double Exposure",
-        "Two images overlaid, silhouette-masking, dreamy transparency, metaphorical composition.",  # noqa: E501
+        "Two images overlaid, silhouette-masking, dreamy transparency, metaphorical composition.",
     ),
     (
         "Glitch Art",
-        'Data corruption artifacts, shifted color channels, interlaced scanlines, "cyber-decay" aesthetic.',  # noqa: E501
+        'Data corruption artifacts, shifted color channels, interlaced scanlines, "cyber-decay" aesthetic.',
     ),
     (
         "Abstract Expressionism",
-        "chaotic drips and splatters, bold gestural strokes, emotional raw canvas, Pollock-inspired",  # noqa: E501
+        "chaotic drips and splatters, bold gestural strokes, emotional raw canvas, Pollock-inspired",
     ),
     (
         "Art Nouveau",
-        "flowing organic lines, intricate floral motifs, elegant curves, Alphonse Mucha elegance",  # noqa: E501
+        "flowing organic lines, intricate floral motifs, elegant curves, Alphonse Mucha elegance",
     ),
     (
         "Celtic Knot",
-        "interwoven patterns, infinite loops, illuminated manuscript borders, medieval symbolism",  # noqa: E501
+        "interwoven patterns, infinite loops, illuminated manuscript borders, medieval symbolism",
     ),
     (
         "Comic Strip",
@@ -133,11 +133,11 @@ STYLES = [
     ),
     (
         "Cubism",
-        "fragmented angular forms, multiple viewpoints, muted earthy tones, Picasso geometry",  # noqa: E501
+        "fragmented angular forms, multiple viewpoints, muted earthy tones, Picasso geometry",
     ),
     (
         "Cyberpunk",
-        "dystopian high-tech, flickering holograms, gritty urban decay, blade runner neon",  # noqa: E501
+        "dystopian high-tech, flickering holograms, gritty urban decay, blade runner neon",
     ),
     (
         "Egyptian Hieroglyph",
@@ -149,27 +149,27 @@ STYLES = [
     ),
     (
         "Mosaic Tile",
-        "tiny colored shards, grout lines, shimmering irregular patterns, Byzantine gleam",  # noqa: E501
+        "tiny colored shards, grout lines, shimmering irregular patterns, Byzantine gleam",
     ),
     (
         "Origami Fold",
-        "sharp paper creases, geometric polygons, floating shadow depth, minimalist craft",  # noqa: E501
+        "sharp paper creases, geometric polygons, floating shadow depth, minimalist craft",
     ),
     (
         "Pointillism",
-        "dense color dots, optical blending, vibrant Seurat landscapes, stippled texture",  # noqa: E501
+        "dense color dots, optical blending, vibrant Seurat landscapes, stippled texture",
     ),
     (
         "Steampunk",
-        "brass gears and pipes, Victorian leather, foggy industrial haze, retro-futuristic gadgets",  # noqa: E501
+        "brass gears and pipes, Victorian leather, foggy industrial haze, retro-futuristic gadgets",
     ),
     (
         "Surrealism",
-        "dreamlike impossibilities, floating elements, Dali melting clocks, subconscious symbolism",  # noqa: E501
+        "dreamlike impossibilities, floating elements, Dali melting clocks, subconscious symbolism",
     ),
     (
         "Vintage Ad",
-        "retro 1950s illustrations, cheerful spot colors, kitschy slogans, magazine gloss",  # noqa: E501
+        "retro 1950s illustrations, cheerful spot colors, kitschy slogans, magazine gloss",
     ),
 ]
 
@@ -184,7 +184,7 @@ def random_style(conn: sqlite3.Connection) -> tuple[str, str] | tuple[None, None
 
 
 def get_all_styles(conn: sqlite3.Connection) -> list[tuple[str, str, int, str]]:
-    """Return all styles as (name, description, used_count, created_at) sorted by name."""  # noqa: E501
+    """Return all styles as (name, description, used_count, created_at) sorted by name."""
     return conn.execute(
         "SELECT name, description, used_count, created_at FROM styles ORDER BY name",
     ).fetchall()
@@ -268,8 +268,15 @@ def _run_remove_style(conn: sqlite3.Connection) -> None:
         console.print("[bold red]Error:[/] Invalid selection — enter numbers only.")
         sys.exit(1)
 
-    to_remove: list[str] = []
+    unique_indices: list[int] = []
+    seen_indices: set[int] = set()
     for idx in indices:
+        if idx not in seen_indices:
+            unique_indices.append(idx)
+            seen_indices.add(idx)
+
+    to_remove: list[str] = []
+    for idx in unique_indices:
         if idx < 1 or idx > len(styles):
             console.print(f"[bold red]Error:[/] {idx} is out of range.")
             sys.exit(1)
