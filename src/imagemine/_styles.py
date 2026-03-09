@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.rule import Rule
+from rich.table import Table
 
 if TYPE_CHECKING:
     import sqlite3
@@ -199,6 +200,12 @@ def add_style(conn: sqlite3.Connection, name: str, description: str) -> None:
     conn.commit()
 
 
+def remove_style(conn: sqlite3.Connection, name: str) -> None:
+    """Delete a style by name."""
+    conn.execute("DELETE FROM styles WHERE name = ?", (name,))
+    conn.commit()
+
+
 def increment_style_count(conn: sqlite3.Connection, name: str) -> None:
     conn.execute(
         "UPDATE styles SET used_count = used_count + 1 WHERE name = ?",
@@ -224,3 +231,64 @@ def _run_add_style(conn: sqlite3.Connection) -> None:
 
     add_style(conn, name.strip(), description.strip())
     console.print(f"\n  [green]✓[/] Style [magenta]{name.strip()}[/] saved.")
+
+
+def _run_remove_style(conn: sqlite3.Connection) -> None:
+    """Interactively select and confirm removal of one or more styles."""
+    console = Console()
+    console.print(Rule("[bold magenta]Remove style[/]"))
+
+    styles = get_all_styles(conn)
+    if not styles:
+        console.print("[dim]No styles found.[/]")
+        return
+
+    table = Table(show_lines=True, border_style="dim")
+    table.add_column("#", justify="right", style="dim")
+    table.add_column("Name", style="magenta")
+    table.add_column("Description", style="dim")
+    table.add_column("Used", justify="right", style="yellow")
+
+    for i, (name, description, used_count, _) in enumerate(styles, 1):
+        table.add_row(str(i), name, description, str(used_count))
+
+    console.print(table)
+
+    raw = Prompt.ask(
+        "\n[bold]Enter number(s) to remove[/] [dim](e.g. 1 or 1,3,5)[/]",
+        default="",
+    )
+    if not raw.strip():
+        console.print("[dim]Cancelled.[/]")
+        return
+
+    try:
+        indices = [int(s.strip()) for s in raw.split(",") if s.strip()]
+    except ValueError:
+        console.print("[bold red]Error:[/] Invalid selection — enter numbers only.")
+        sys.exit(1)
+
+    to_remove: list[str] = []
+    for idx in indices:
+        if idx < 1 or idx > len(styles):
+            console.print(f"[bold red]Error:[/] {idx} is out of range.")
+            sys.exit(1)
+        to_remove.append(styles[idx - 1][0])
+
+    console.print("\nStyles to remove:")
+    for style_name in to_remove:
+        console.print(f"  [magenta]{style_name}[/]")
+
+    confirm = Prompt.ask(
+        "\n[bold red]Delete these styles?[/]",
+        choices=["y", "n"],
+        default="n",
+    )
+    if confirm != "y":
+        console.print("[dim]Cancelled.[/]")
+        return
+
+    for style_name in to_remove:
+        remove_style(conn, style_name)
+
+    console.print(f"\n  [green]✓[/] Removed {len(to_remove)} style(s).")

@@ -3,6 +3,7 @@
 import pathlib
 import sys
 import time
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from rich.bar import Bar
@@ -30,6 +31,7 @@ from ._image import resize_image
 from ._launchd import _write_launchd_plist
 from ._styles import (
     _run_add_style,
+    _run_remove_style,
     get_all_styles,
     increment_style_count,
     random_style,
@@ -141,7 +143,14 @@ def _show_styles(conn: sqlite3.Connection, console: Console) -> None:
     table.add_column("Added", style="dim")
 
     for name, description, used_count, created_at in styles:
-        table.add_row(name, description, str(used_count), created_at)
+        try:
+            local_dt = (
+                datetime.fromisoformat(created_at).replace(tzinfo=UTC).astimezone()
+            )
+            created_at_display = local_dt.strftime("%Y-%m-%d %H:%M")
+        except ValueError, TypeError:
+            created_at_display = created_at or ""
+        table.add_row(name, description, str(used_count), created_at_display)
 
     console.print(table)
     console.print(f"[dim]Total: {len(styles)} styles[/]")
@@ -184,11 +193,16 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         _run_add_style(conn)
         return
 
+    if args.remove_style:
+        _run_remove_style(conn)
+        return
+
     if args.launchd is not None:
         if args.launchd <= 0:
             err("--launchd must be a positive integer.")
             sys.exit(1)
         _write_launchd_plist(
+            conn,
             config_path=args.config_path,
             interval_minutes=args.launchd,
         )
@@ -254,15 +268,12 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         update_run(conn, run_id, input_album_photo_id=input_album_photo_id)
 
     # ── Step 2: Resize ────────────────────────────────────────────────────
-    console.rule("[dim]Resize[/]", style="dim")
-    with console.status("[dim]Resizing image...[/]", spinner="line"):
-        try:
-            image, resized_path = resize_image(input_path, output_dir)
-        except Exception as e:  # noqa: BLE001
-            err(f"Failed to open image: {e}")
-            sys.exit(1)
+    try:
+        image, resized_path = resize_image(input_path, output_dir)
+    except Exception as e:  # noqa: BLE001
+        err(f"Failed to open image: {e}")
+        sys.exit(1)
     update_run(conn, run_id, resized_file_path=str(resized_path))
-    console.print(f"  [dim]→[/] [cyan]{resized_path.name}[/]")
 
     # ── Step 3: Describe ──────────────────────────────────────────────────
     console.rule("[dim]Describe[/]", style="dim")
@@ -302,41 +313,32 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
     # ── Step 4: Style ─────────────────────────────────────────────────────
     console.rule("[dim]Style[/]", style="dim")
     style_name: str | None
+    style: str | None
     if args.style:
-        # --style is a free-form prompt appended directly; no DB lookup or generation
-        style_prompt = args.style
+        style_name = None
+        style = args.style
         tree = Tree("[bold]Style (custom)[/]")
         label = Text()
-        label.append(f"✦ {style_prompt}", style="bold magenta")
-        tree.add(label)
-        console.print(tree)
-        styled_description = f"{description}\n\nStyle: {style_prompt}"
-        console.print(
-            Panel(
-                Markdown(styled_description),
-                title="[bold cyan]Final prompt (preview)[/]",
-                border_style="cyan",
-                padding=(1, 2),
-            ),
-        )
-        console.print("[dim]Pass without --style to proceed with image generation.[/]")
-        resized_path.unlink(missing_ok=True)
-        return
-
-    style_name, style_desc = random_style(conn)
-    style: str | None = f"{style_name}: {style_desc}" if style_name else None
-
-    if style and style_name:
-        tree = Tree("[bold]Selected style[/]")
-        label = Text()
-        label.append(f"✦ {style_name}", style="bold magenta")
-        if style_desc:
-            label.append(f"  —  {style_desc}", style="dim")
+        label.append(f"✦ {style}", style="bold magenta")
         tree.add(label)
         console.print(tree)
         description = f"{description}\n\nStyle: {style}"
-        update_run(conn, run_id, style=style)
-        increment_style_count(conn, style_name)
+        update_run(conn, run_id, style=args.style)
+    else:
+        style_name, style_desc = random_style(conn)
+        style = f"{style_name}: {style_desc}" if style_name else None
+
+        if style and style_name:
+            tree = Tree("[bold]Selected style[/]")
+            label = Text()
+            label.append(f"✦ {style_name}", style="bold magenta")
+            if style_desc:
+                label.append(f"  —  {style_desc}", style="dim")
+            tree.add(label)
+            console.print(tree)
+            description = f"{description}\n\nStyle: {style}"
+            update_run(conn, run_id, style=style)
+            increment_style_count(conn, style_name)
 
     # ── Step 5: Generate ──────────────────────────────────────────────────
     console.rule("[dim]Generate[/]", style="dim")
@@ -392,8 +394,8 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
     grid.add_column(style="dim", justify="right")
     grid.add_column()
     grid.add_row("source", f"[cyan]{pathlib.Path(input_path).name}[/]")
-    if style and style_name:
-        grid.add_row("style", f"[magenta]{style_name}[/]")
+    if style:
+        grid.add_row("style", f"[magenta]{style_name or style}[/]")
     if desc_ms:
         grid.add_row("describe", f"[yellow]{desc_ms / 1000:.1f}s[/]")
     if img_ms:

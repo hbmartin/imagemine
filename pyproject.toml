@@ -30,14 +30,20 @@ classifiers = [
 ]
 keywords = [
     "image",
-    "vision",
     "llm",
     "ai",
-    "ocr",
     "extraction",
     "anthropic",
     "claude",
     "multimodal",
+    "gemini",
+    "generative-ai",
+    "image-generation",
+    "artwork",
+    "photos",
+    "automation",
+    "scheduled",
+    "cli",
 ]
 
 [project.urls]
