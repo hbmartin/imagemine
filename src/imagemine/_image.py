@@ -3,6 +3,15 @@ import pathlib
 from PIL import Image, PngImagePlugin
 
 
+def _png_save_metadata(img: Image.Image) -> dict[str, object]:
+    save_metadata: dict[str, object] = {}
+    for key in ("dpi", "icc_profile", "exif", "transparency"):
+        value = img.info.get(key)
+        if value is not None:
+            save_metadata[key] = value
+    return save_metadata
+
+
 def write_png_metadata(path: str, description: str) -> None:
     with Image.open(path) as img:
         image = img.copy()
@@ -11,7 +20,8 @@ def write_png_metadata(path: str, description: str) -> None:
             if key != "Description":
                 png_info.add_text(key, value)
         png_info.add_text("Description", description)
-    image.save(path, pnginfo=png_info)
+        save_metadata = _png_save_metadata(img)
+    image.save(path, pnginfo=png_info, **save_metadata)
 
 
 def resize_image(

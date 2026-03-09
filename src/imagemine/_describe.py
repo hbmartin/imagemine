@@ -59,6 +59,7 @@ def describe_image(
     temperature: float = 2.0,
     api_key: str | None = None,
     model: str = DEFAULT_MODEL,
+    story: str | None = None,
 ) -> str:
     client = anthropic.Anthropic(api_key=api_key)
 
@@ -71,6 +72,10 @@ def describe_image(
         betas=["files-api-2025-04-14"],
     )
     tmp_path.unlink(missing_ok=True)
+
+    prompt = PROMPT
+    if story:
+        prompt = f"Background information:\n{story}\n\n{PROMPT}"
 
     try:
         response = client.beta.messages.create(
@@ -90,7 +95,7 @@ def describe_image(
                         },
                         {
                             "type": "text",
-                            "text": PROMPT,
+                            "text": prompt,
                         },
                     ],
                 },
@@ -114,6 +119,7 @@ def _get_description(  # noqa: PLR0913
     desc_temp: float,
     api_key: str,
     model: str = DEFAULT_MODEL,
+    story: str | None = None,
     *,
     log: Callable[[str], None],
     err: Callable[[str], None],
@@ -121,7 +127,7 @@ def _get_description(  # noqa: PLR0913
     """Return a description, freshly generated."""
     avg = avg_duration_ms(conn, "desc_gen_ms")
     avg_str = f" (avg time: {avg / 1000:.1f}s)" if avg is not None else ""
-    log(f"Generating fantastical description with Claude...{avg_str}")
+    log(f"Generating storyline with Claude...{avg_str}")
     t0 = time.monotonic()
     try:
         description = describe_image(
@@ -129,6 +135,7 @@ def _get_description(  # noqa: PLR0913
             temperature=desc_temp,
             api_key=api_key,
             model=model,
+            story=story,
         )
     except Exception as e:
         err(f"Description generation failed: {e}")

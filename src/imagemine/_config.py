@@ -166,7 +166,7 @@ def _run_config_wizard(conn: sqlite3.Connection) -> None:
 def _parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Transform a photo into a fantasy image",
+        description="Transform a photo into a re-imagined image",
     )
     parser.add_argument(
         "image_path",
@@ -200,6 +200,15 @@ def _parse_args() -> argparse.Namespace:
         "--destination-album",
         default=None,
         help="macOS Photos album to import the generated image into (overrides DB)",
+    )
+    parser.add_argument(
+        "--story",
+        default=None,
+        metavar="TEXT",
+        help=(
+            "Background context appended to the Claude prompt"
+            " when generating the image description"
+        ),
     )
     parser.add_argument(
         "--style",
