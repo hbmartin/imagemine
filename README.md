@@ -31,7 +31,7 @@ Transform any photo into a fantastical image. imagemine uses Claude to write a s
 uvx imagemine path/to/photo.jpg
 ```
 
-The generated image is saved to the current directory. The story and image prompt are printed to stderr; the output file path is printed to stdout.
+The generated image is saved to the current directory. The terminal UI shows each pipeline step with live spinners, elapsed timers, and a final summary panel.
 
 ### Installing
 
@@ -48,7 +48,7 @@ Keys are resolved in this order on each run:
 
 1. **Database** — stored in `imagemine.db` after first entry
 2. **Environment variables** — `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`
-3. **Interactive prompt** — if neither is found, you are prompted and the value is saved to the database for future runs
+3. **Interactive prompt** — if neither is found, you are prompted (input is masked) and the value is saved to the database for future runs
 
 To set keys via environment:
 
@@ -104,8 +104,14 @@ imagemine photo.jpg --force
 # Silent mode — no output, just runs and records to DB
 imagemine photo.jpg --silent
 
-# Redirect story to a file, output path to stdout
-imagemine photo.jpg 2>story.txt
+# Save an SVG of the terminal session alongside the generated image
+imagemine photo.jpg --session-svg
+
+# Show recent run history with timing sparklines
+imagemine --history
+
+# Configure API keys and settings interactively
+imagemine --config
 ```
 
 ## Styles
@@ -135,7 +141,15 @@ sqlite3 imagemine.db "DELETE FROM styles WHERE name = 'Meme Format';"
 
 ## Configuration
 
-All configuration is stored in the `config` table of `imagemine.db`. Use `INSERT OR REPLACE` to set or update any value:
+Run the interactive config wizard to set or update any value:
+
+```sh
+imagemine --config
+```
+
+The wizard walks through each key in order, pre-populates non-secret fields with their current values, and masks API key input. Leaving a field blank keeps the existing value (or skips it if unset).
+
+You can also edit the `config` table in `imagemine.db` directly:
 
 ```sh
 sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('<key>', '<value>');"
@@ -159,6 +173,12 @@ You can use imagemine to generate a living screensaver on Apple TV by continuous
 1. In macOS Photos, create two albums — one for source photos (e.g. `Camera Roll`) and one for the generated output (e.g. `imagemine`). Make the output album a Shared Album so Apple TV can see it.
 
 2. Configure imagemine to read from the source album and write to the output album:
+
+```sh
+imagemine --config
+```
+
+Or set directly in the database:
 
 ```sh
 sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('INPUT_ALBUM', 'Camera Roll');"
@@ -259,6 +279,19 @@ Every run is recorded in `imagemine.db` (created in the working directory). The 
 | `style`                  | Visual style applied to the image prompt                     |
 
 If a source image path already has a description stored, Claude is skipped and the cached description is reused. Use `--force` to bypass this.
+
+### Terminal UI
+
+imagemine uses [Rich](https://github.com/Textualize/rich) for its terminal output:
+
+- **Labeled section rules** divide the pipeline into phases: Resize → Describe → Style → Generate
+- **Live spinners with elapsed timers** show progress during the two API calls — a `moon` spinner for Claude description generation and an `arc` spinner for Gemini image generation
+- **Description panel** renders the generated story as formatted Markdown inside a cyan-bordered panel
+- **Style tree** shows the randomly selected style with its full description
+- **Summary panel** displays source file, style, per-step timing, total wall time, and output path
+- **`--history` table** lists recent runs with per-step timing, total time, and a proportional sparkline bar
+- **`--session-svg`** saves a styled SVG of the entire terminal session alongside the generated image
+- **Error tracebacks** are rendered with Rich syntax highlighting when an API call fails
 
 ## Legal
 

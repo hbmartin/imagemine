@@ -2,11 +2,15 @@
 
 import pathlib
 import sys
+import threading
+import time
 from typing import TYPE_CHECKING
 
+from rich.bar import Bar
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
@@ -66,30 +70,52 @@ def _resolve_input(
 
 
 def _show_history(conn: sqlite3.Connection, console: Console) -> None:
-    """Display recent runs as a Rich table."""
+    """Display recent runs as a Rich table with a relative-time sparkline."""
     runs = get_recent_runs(conn)
     if not runs:
         console.print("[dim]No runs found.[/]")
         return
+
+    def _ms(v: str | None) -> int:
+        return int(v) if v is not None else 0
+
+    max_total_ms: float = (
+        max(
+            (_ms(r[3]) + _ms(r[4]) for r in runs),
+            default=1,
+        )
+        or 1
+    )
+
     table = Table(title="Recent Runs", show_lines=True, border_style="dim")
     table.add_column("Date", style="dim", no_wrap=True)
     table.add_column("Source", style="cyan")
     table.add_column("Style", style="magenta")
     table.add_column("Desc", justify="right", style="yellow")
     table.add_column("Img", justify="right", style="yellow")
+    table.add_column("Total", justify="right", style="yellow")
+    table.add_column("", no_wrap=True)
     table.add_column("Output", style="green")
+
     for row in runs:
         started_at, input_path, style, desc_ms, img_ms, output_path = row
-        desc_str = f"{desc_ms / 1000:.1f}s" if desc_ms else "—"
-        img_str = f"{img_ms / 1000:.1f}s" if img_ms else "—"
+        d_ms = _ms(desc_ms)
+        i_ms = _ms(img_ms)
+        desc_str = f"{d_ms / 1000:.1f}s" if d_ms else "—"
+        img_str = f"{i_ms / 1000:.1f}s" if i_ms else "—"
+        total_ms: float = d_ms + i_ms
+        total_str = f"{total_ms / 1000:.1f}s" if total_ms else "—"
         src = pathlib.Path(input_path).name if input_path else "—"
         out = pathlib.Path(output_path).name if output_path else "—"
+        bar = Bar(max_total_ms, 0, total_ms, width=10, color="yellow")
         table.add_row(
             started_at or "—",
             src,
             style or "—",
             desc_str,
             img_str,
+            total_str,
+            bar,
             out,
         )
     console.print(table)
@@ -98,7 +124,8 @@ def _show_history(conn: sqlite3.Connection, console: Console) -> None:
 def main() -> None:  # noqa: C901, PLR0912, PLR0915
     """Run the imagemine pipeline: resize, describe, generate."""
     args = _parse_args()
-    console = Console(quiet=args.silent)
+    t_start = time.monotonic()
+    console = Console(quiet=args.silent, record=args.session_svg)
 
     def err(msg: str) -> None:
         console.print(f"[bold red]Error:[/] {msg}")
@@ -110,12 +137,12 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     conn = init_db(DB_PATH)
 
-    if args.config:
-        _run_config_wizard(conn)
-        return
-
     if args.history:
         _show_history(conn, console)
+        return
+
+    if args.config:
+        _run_config_wizard(conn)
         return
 
     desc_temp = float(
@@ -172,7 +199,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     # ── Step 2: Resize ────────────────────────────────────────────────────
     console.rule("[dim]Resize[/]", style="dim")
-    with console.status("[dim]Resizing image...[/]"):
+    with console.status("[dim]Resizing image...[/]", spinner="line"):
         try:
             image, resized_path = resize_image(input_path, output_dir)
         except Exception as e:  # noqa: BLE001
@@ -183,22 +210,48 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     # ── Step 3: Describe ──────────────────────────────────────────────────
     console.rule("[dim]Describe[/]", style="dim")
-    with console.status("Preparing...", spinner="dots") as status:
+    _desc_result: list[str | None] = [None]
+    _desc_exit: list[int | None] = [None]
+
+    with Progress(
+        SpinnerColumn(spinner_name="moon"),
+        TextColumn("{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        task = progress.add_task("[bold cyan]Preparing...", total=None)
 
         def log_describe(msg: str) -> None:
-            status.update(f"[bold cyan]{msg}[/]")
+            progress.update(task, description=f"[bold cyan]{msg}")
 
-        description = _get_description(
-            conn,
-            run_id,
-            image,
-            input_path,
-            desc_temp,
-            anthropic_api_key,
-            force=args.force,
-            log=log_describe,
-            err=err,
-        )
+        def _describe_worker() -> None:
+            try:
+                _desc_result[0] = _get_description(
+                    conn,
+                    run_id,
+                    image,
+                    input_path,
+                    desc_temp,
+                    anthropic_api_key,
+                    force=args.force,
+                    log=log_describe,
+                    err=err,
+                )
+            except SystemExit as exc:
+                _desc_exit[0] = int(exc.code) if exc.code is not None else 1
+
+        t = threading.Thread(target=_describe_worker, daemon=True)
+        t.start()
+        t.join()
+
+    if _desc_exit[0] is not None:
+        sys.exit(_desc_exit[0])
+    if _desc_result[0] is None:
+        err("Description generation returned no result.")
+        sys.exit(1)
+    description = _desc_result[0]
+
     console.print(
         Panel(
             Markdown(description),
@@ -233,22 +286,48 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     # ── Step 5: Generate ──────────────────────────────────────────────────
     console.rule("[dim]Generate[/]", style="dim")
-    with console.status("Preparing...", spinner="dots") as status:
+    _gen_result: list[str | None] = [None]
+    _gen_exit: list[int | None] = [None]
+
+    with Progress(
+        SpinnerColumn(spinner_name="arc"),
+        TextColumn("{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        task = progress.add_task("[bold yellow]Preparing...", total=None)
 
         def log_generate(msg: str) -> None:
-            status.update(f"[bold yellow]{msg}[/]")
+            progress.update(task, description=f"[bold yellow]{msg}")
 
-        output_path = _run_generation(
-            conn,
-            run_id,
-            description,
-            image,
-            img_temp,
-            gemini_api_key,
-            output_dir,
-            log=log_generate,
-            err=err,
-        )
+        def _generate_worker() -> None:
+            try:
+                _gen_result[0] = _run_generation(
+                    conn,
+                    run_id,
+                    description,
+                    image,
+                    img_temp,
+                    gemini_api_key,
+                    output_dir,
+                    log=log_generate,
+                    err=err,
+                )
+            except SystemExit as exc:
+                _gen_exit[0] = int(exc.code) if exc.code is not None else 1
+
+        t = threading.Thread(target=_generate_worker, daemon=True)
+        t.start()
+        t.join()
+
+    if _gen_exit[0] is not None:
+        sys.exit(_gen_exit[0])
+    if _gen_result[0] is None:
+        err("Image generation returned no result.")
+        sys.exit(1)
+    output_path = _gen_result[0]
+
     resized_path.unlink(missing_ok=True)
 
     # ── Step 6: Add to Photos album (optional) ────────────────────────────
@@ -268,6 +347,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         (run_id,),
     ).fetchone()
     desc_ms, img_ms = run_data or (None, None)
+    total_s = time.monotonic() - t_start
 
     grid = Table.grid(padding=(0, 1))
     grid.add_column(style="dim", justify="right")
@@ -279,7 +359,14 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         grid.add_row("describe", f"[yellow]{desc_ms / 1000:.1f}s[/]")
     if img_ms:
         grid.add_row("generate", f"[yellow]{img_ms / 1000:.1f}s[/]")
+    grid.add_row("total", f"[yellow]{total_s:.1f}s[/]")
     grid.add_row("output", f"[green]{output_path}[/]")
 
     console.rule()
     console.print(Panel(grid, title="[bold green]Done[/]", border_style="green"))
+
+    # ── Session SVG (optional) ────────────────────────────────────────────
+    if args.session_svg:
+        svg_path = output_dir / f"imagemine_{run_id}.svg"
+        console.save_svg(str(svg_path), title="imagemine")
+        console.print(f"  [dim]Session saved:[/] [cyan]{svg_path}[/]")

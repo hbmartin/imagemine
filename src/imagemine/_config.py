@@ -19,12 +19,18 @@ def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
     """Resolve an API key: DB config → env var → interactive prompt (then store)."""
     value = get_config(conn, key) or os.environ.get(key)
     if not value:
-        value = input(f"{prompt}: ").strip()
+        _console = Console()
+        value = Prompt.ask(
+            f"[bold]{prompt}[/]",
+            password=True,
+            console=_console,
+            default="",
+        )
         if not value:
-            print(f"Error: {key} is required.", file=sys.stderr)
+            _console.print(f"[bold red]Error:[/] {key} is required.")
             sys.exit(1)
         set_config(conn, key, value)
-        print(f"{key} saved to database.", file=sys.stderr)
+        _console.print(f"  [green]✓[/] {key} saved to database.")
     return value
 
 
@@ -154,5 +160,10 @@ def _parse_args() -> argparse.Namespace:
         "--config",
         action="store_true",
         help="Interactively configure imagemine settings and exit",
+    )
+    parser.add_argument(
+        "--session-svg",
+        action="store_true",
+        help="Save an SVG of the terminal session alongside the generated image",
     )
     return parser.parse_args()
