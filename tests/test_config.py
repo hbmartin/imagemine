@@ -1,8 +1,12 @@
 import pathlib
 import sys
+import types
+
+import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
+import imagemine._config as cfg
 from imagemine._config import (
     _parse_args,
     _resolve_api_key,
@@ -10,6 +14,13 @@ from imagemine._config import (
     _resolve_required_option,
 )
 from imagemine._db import get_config, init_db, set_config
+
+DB_TEMP = 1.5
+ENV_TEMP = 0.8
+CLI_TEMP = 0.5
+LAUNCHD_INTERVAL = 45
+CONFIG_INTERVAL = 30
+CONFIG_DB_PATH = "/path/to/test.db"
 
 
 def _mem():
@@ -60,27 +71,27 @@ def test_returns_none_when_nothing_set(monkeypatch) -> None:
 
 def test_cast_applied_to_db_string_value() -> None:
     conn = _mem()
-    set_config(conn, "TEMP", "1.5")
+    set_config(conn, "TEMP", str(DB_TEMP))
 
     result = _resolve_option(conn, None, "TEMP", cast=float)
 
-    assert result == 1.5
+    assert result == DB_TEMP
     assert isinstance(result, float)
 
 
 def test_cast_applied_to_env_value(monkeypatch) -> None:
     conn = _mem()
-    monkeypatch.setenv("MY_TEMP", "0.8")
+    monkeypatch.setenv("MY_TEMP", str(ENV_TEMP))
 
     result = _resolve_option(conn, None, "MISSING_KEY", env_key="MY_TEMP", cast=float)
 
-    assert result == 0.8
+    assert result == ENV_TEMP
     assert isinstance(result, float)
 
 
 def test_cli_float_value_returned_unchanged() -> None:
-    result = _resolve_option(_mem(), 0.5, "MISSING_KEY", cast=float)
-    assert result == 0.5
+    result = _resolve_option(_mem(), CLI_TEMP, "MISSING_KEY", cast=float)
+    assert result == CLI_TEMP
 
 
 # ---------------------------------------------------------------------------
@@ -112,11 +123,11 @@ def test_required_option_returns_default_typed_value(monkeypatch) -> None:
         None,
         "MISSING_KEY",
         env_key="MY_TEMP",
-        default=1.5,
+        default=DB_TEMP,
         cast=float,
     )
 
-    assert result == 1.5
+    assert result == DB_TEMP
     assert isinstance(result, float)
 
 
@@ -145,14 +156,11 @@ def test_api_key_returned_from_env_when_db_empty(monkeypatch) -> None:
 
 
 def test_api_key_prompt_used_when_db_and_env_absent(monkeypatch) -> None:
-    import imagemine._config as cfg
-    import types
-
     conn = _mem()
     monkeypatch.delenv("MY_API_KEY", raising=False)
-    fake_console = types.SimpleNamespace(print=lambda *a, **kw: None)
+    fake_console = types.SimpleNamespace(print=lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cfg, "Console", lambda: fake_console)
-    monkeypatch.setattr(cfg.Prompt, "ask", lambda *a, **kw: "prompted-key")
+    monkeypatch.setattr(cfg.Prompt, "ask", lambda *_args, **_kwargs: "prompted-key")
 
     result = _resolve_api_key(conn, "MY_API_KEY", "Enter key")
 
@@ -161,21 +169,15 @@ def test_api_key_prompt_used_when_db_and_env_absent(monkeypatch) -> None:
 
 
 def test_api_key_blank_prompt_exits(monkeypatch) -> None:
-    import imagemine._config as cfg
-    import types
-
     conn = _mem()
     monkeypatch.delenv("MY_API_KEY", raising=False)
-    fake_console = types.SimpleNamespace(print=lambda *a, **kw: None)
+    fake_console = types.SimpleNamespace(print=lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cfg, "Console", lambda: fake_console)
-    monkeypatch.setattr(cfg.Prompt, "ask", lambda *a, **kw: "")
+    monkeypatch.setattr(cfg.Prompt, "ask", lambda *_args, **_kwargs: "")
 
-    try:
+    with pytest.raises(SystemExit) as exc_info:
         _resolve_api_key(conn, "MY_API_KEY", "Enter key")
-    except SystemExit as exc:
-        assert exc.code == 1
-    else:
-        raise AssertionError("expected SystemExit")
+    assert exc_info.value.code == 1
 
 
 # ---------------------------------------------------------------------------
@@ -196,18 +198,26 @@ def test_parse_args_launchd_bare_gives_zero(monkeypatch) -> None:
 
 
 def test_parse_args_launchd_with_value(monkeypatch) -> None:
-    monkeypatch.setattr(sys, "argv", ["imagemine", "--launchd", "45"])
+    monkeypatch.setattr(sys, "argv", ["imagemine", "--launchd", str(LAUNCHD_INTERVAL)])
     args = _parse_args()
-    assert args.launchd == 45
+    assert args.launchd == LAUNCHD_INTERVAL
 
 
 def test_parse_args_launchd_with_config_path(monkeypatch) -> None:
     monkeypatch.setattr(
-        sys, "argv", ["imagemine", "--launchd", "30", "--config-path", "/tmp/test.db"]
+        sys,
+        "argv",
+        [
+            "imagemine",
+            "--launchd",
+            str(CONFIG_INTERVAL),
+            "--config-path",
+            CONFIG_DB_PATH,
+        ],
     )
     args = _parse_args()
-    assert args.launchd == 30
-    assert args.config_path == "/tmp/test.db"
+    assert args.launchd == CONFIG_INTERVAL
+    assert args.config_path == CONFIG_DB_PATH
 
 
 def test_parse_args_image_path_parsed(monkeypatch) -> None:

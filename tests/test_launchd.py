@@ -1,5 +1,6 @@
 import pathlib
 import sys
+import types
 
 import pytest
 
@@ -17,9 +18,7 @@ def _patch_plist_path(monkeypatch, tmp_path) -> pathlib.Path:
 
 def _silent_console(monkeypatch) -> None:
     """Replace Console so nothing is printed during tests."""
-    import types
-
-    fake = types.SimpleNamespace(print=lambda *a, **kw: None)
+    fake = types.SimpleNamespace(print=lambda *_args, **_kwargs: None)
     monkeypatch.setattr(lm, "Console", lambda: fake)
 
 
@@ -32,7 +31,9 @@ def test_uses_imagemine_binary_when_found(monkeypatch, tmp_path) -> None:
     plist_path = _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(
-        lm.shutil, "which", lambda name: "/usr/local/bin/imagemine" if name == "imagemine" else None
+        lm.shutil,
+        "which",
+        lambda name: "/usr/local/bin/imagemine" if name == "imagemine" else None,
     )
 
     _write_launchd_plist(interval_minutes=30)
@@ -46,7 +47,9 @@ def test_falls_back_to_uvx_when_imagemine_not_found(monkeypatch, tmp_path) -> No
     plist_path = _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(
-        lm.shutil, "which", lambda name: "/usr/local/bin/uvx" if name == "uvx" else None
+        lm.shutil,
+        "which",
+        lambda name: "/usr/local/bin/uvx" if name == "uvx" else None,
     )
 
     _write_launchd_plist(interval_minutes=30)
@@ -128,7 +131,7 @@ def test_prompts_for_interval_when_none(monkeypatch, tmp_path) -> None:
     plist_path = _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _: None)
-    monkeypatch.setattr(lm.IntPrompt, "ask", lambda *a, **kw: 20)
+    monkeypatch.setattr(lm.IntPrompt, "ask", lambda *_args, **_kwargs: 20)
 
     _write_launchd_plist(interval_minutes=None)
 
@@ -139,7 +142,7 @@ def test_zero_interval_from_prompt_exits(monkeypatch, tmp_path) -> None:
     _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _: None)
-    monkeypatch.setattr(lm.IntPrompt, "ask", lambda *a, **kw: 0)
+    monkeypatch.setattr(lm.IntPrompt, "ask", lambda *_args, **_kwargs: 0)
 
     with pytest.raises(SystemExit) as exc_info:
         _write_launchd_plist(interval_minutes=None)
@@ -151,7 +154,7 @@ def test_negative_interval_from_prompt_exits(monkeypatch, tmp_path) -> None:
     _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _: None)
-    monkeypatch.setattr(lm.IntPrompt, "ask", lambda *a, **kw: -5)
+    monkeypatch.setattr(lm.IntPrompt, "ask", lambda *_args, **_kwargs: -5)
 
     with pytest.raises(SystemExit) as exc_info:
         _write_launchd_plist(interval_minutes=None)
@@ -194,7 +197,9 @@ def test_plist_log_paths_present(monkeypatch, tmp_path) -> None:
     _write_launchd_plist(interval_minutes=30)
 
     content = plist_path.read_text()
-    assert "/tmp/imagemine.log" in content
+    assert "<key>StandardOutPath</key>" in content
+    assert "<key>StandardErrorPath</key>" in content
+    assert "imagemine.log" in content
 
 
 def test_plist_file_created(monkeypatch, tmp_path) -> None:

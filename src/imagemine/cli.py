@@ -138,11 +138,13 @@ def _show_styles(conn: sqlite3.Connection, console: Console) -> None:
     table.add_column("Name", style="magenta")
     table.add_column("Description", style="dim")
     table.add_column("Used", justify="right", style="yellow")
+    table.add_column("Added", style="dim")
 
-    for name, description, used_count in styles:
-        table.add_row(name, description, str(used_count))
+    for name, description, used_count, created_at in styles:
+        table.add_row(name, description, str(used_count), created_at)
 
     console.print(table)
+    console.print(f"[dim]Total: {len(styles)} styles[/]")
 
 
 def main() -> None:  # noqa: C901, PLR0912, PLR0915
@@ -370,7 +372,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
     # ── Step 6: Add to Photos album (optional) ────────────────────────────
     if destination_album:
         try:
-            _add_to_photos_album(output_path, str(destination_album))
+            _add_to_photos_album(output_path, str(destination_album), description)
         except Exception as e:  # noqa: BLE001
             err(f"Failed to add to Photos album {destination_album!r}: {e}")
         else:

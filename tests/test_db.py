@@ -31,7 +31,7 @@ def test_init_db_creates_tables() -> None:
     tables = {
         row[0]
         for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
+            "SELECT name FROM sqlite_master WHERE type='table'",
         ).fetchall()
     }
     assert {"runs", "styles", "config"}.issubset(tables)
@@ -44,7 +44,6 @@ def test_init_db_seeds_styles() -> None:
 
 
 def test_init_db_is_idempotent() -> None:
-    conn = _mem()
     # Calling init_db a second time on the same connection should not raise.
     init_db(":memory:")
 
@@ -93,7 +92,7 @@ def test_insert_run_stores_input_path() -> None:
     conn = _mem()
     run_id = insert_run(conn, "/my/photo.jpg")
     row = conn.execute(
-        "SELECT input_file_path FROM runs WHERE id = ?", (run_id,)
+        "SELECT input_file_path FROM runs WHERE id = ?", (run_id,),
     ).fetchone()
     assert row[0] == "/my/photo.jpg"
 
@@ -108,20 +107,26 @@ def test_update_run_sets_single_field() -> None:
     run_id = insert_run(conn, "/photo.jpg")
     update_run(conn, run_id, generated_description="lovely scene")
     row = conn.execute(
-        "SELECT generated_description FROM runs WHERE id = ?", (run_id,)
+        "SELECT generated_description FROM runs WHERE id = ?", (run_id,),
     ).fetchone()
     assert row[0] == "lovely scene"
 
 
 def test_update_run_sets_multiple_fields() -> None:
+    expected_temp = 0.7
     conn = _mem()
     run_id = insert_run(conn, "/photo.jpg")
-    update_run(conn, run_id, generated_description="a nice photo", desc_temp=0.7)
+    update_run(
+        conn,
+        run_id,
+        generated_description="a nice photo",
+        desc_temp=expected_temp,
+    )
     row = conn.execute(
-        "SELECT generated_description, desc_temp FROM runs WHERE id = ?", (run_id,)
+        "SELECT generated_description, desc_temp FROM runs WHERE id = ?", (run_id,),
     ).fetchone()
     assert row[0] == "a nice photo"
-    assert row[1] == 0.7
+    assert row[1] == expected_temp
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +184,7 @@ def test_lookup_description_ignores_other_models() -> None:
 
 
 def test_lookup_description_returns_latest_match_for_model() -> None:
+    expected_description = "second output"
     conn = _mem()
     first_run = insert_run(conn, "/photo.jpg")
     second_run = insert_run(conn, "/photo.jpg")
@@ -191,11 +197,14 @@ def test_lookup_description_returns_latest_match_for_model() -> None:
     update_run(
         conn,
         second_run,
-        generated_description="second output",
+        generated_description=expected_description,
         description_model_name="claude-sonnet-4-0",
     )
 
-    assert lookup_description(conn, "/photo.jpg", "claude-sonnet-4-0") == "second output"
+    assert (
+        lookup_description(conn, "/photo.jpg", "claude-sonnet-4-0")
+        == expected_description
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -208,20 +217,22 @@ def test_avg_duration_ms_returns_none_when_no_data() -> None:
 
 
 def test_avg_duration_ms_computes_average() -> None:
+    expected_average = 150.0
     conn = _mem()
     id1 = insert_run(conn, "/a.jpg")
     id2 = insert_run(conn, "/b.jpg")
     update_run(conn, id1, desc_gen_ms=100)
     update_run(conn, id2, desc_gen_ms=200)
-    assert avg_duration_ms(conn, "desc_gen_ms") == 150.0
+    assert avg_duration_ms(conn, "desc_gen_ms") == expected_average
 
 
 def test_avg_duration_ms_ignores_null_rows() -> None:
+    expected_average = 300.0
     conn = _mem()
     id1 = insert_run(conn, "/a.jpg")
     insert_run(conn, "/b.jpg")  # no duration set
     update_run(conn, id1, desc_gen_ms=300)
-    assert avg_duration_ms(conn, "desc_gen_ms") == 300.0
+    assert avg_duration_ms(conn, "desc_gen_ms") == expected_average
 
 
 # ---------------------------------------------------------------------------
@@ -241,7 +252,7 @@ def test_random_style_returns_name_and_description() -> None:
 def test_random_style_empty_styles_table_returns_nones() -> None:
     conn = sqlite3.connect(":memory:")
     conn.execute(
-        "CREATE TABLE styles (name TEXT PRIMARY KEY, description TEXT NOT NULL)"
+        "CREATE TABLE styles (name TEXT PRIMARY KEY, description TEXT NOT NULL)",
     )
     conn.commit()
     name, desc = random_style(conn)

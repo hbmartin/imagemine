@@ -7,6 +7,11 @@ if TYPE_CHECKING:
     import pathlib
 
 
+def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(row[1] == column for row in rows)
+
+
 def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.execute("""
@@ -27,17 +32,25 @@ def init_db(db_path: pathlib.Path) -> sqlite3.Connection:
             style TEXT
         )
     """)
+    styles_existed = (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='styles'",
+        ).fetchone()
+        is not None
+    )
     conn.execute("""
         CREATE TABLE IF NOT EXISTS styles (
             name TEXT PRIMARY KEY,
             description TEXT NOT NULL,
-            used_count INTEGER NOT NULL DEFAULT 0
+            used_count INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
-    conn.executemany(
-        "INSERT OR IGNORE INTO styles (name, description) VALUES (?, ?)",
-        STYLES,
-    )
+    if not styles_existed:
+        conn.executemany(
+            "INSERT OR IGNORE INTO styles (name, description) VALUES (?, ?)",
+            STYLES,
+        )
     conn.execute("""
         CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,

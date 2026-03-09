@@ -48,7 +48,9 @@ jobs:
       - name: Run Pyrefly check
         run: |
           uv run pyrefly check src
-
+      - name: Run ty check
+        run: |
+          uv run ty check src
       - name: Run tests
         run: |
           uv run pytest tests/ --cov=src --cov-report=xml
