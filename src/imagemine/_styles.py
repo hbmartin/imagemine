@@ -114,6 +114,62 @@ STYLES = [
         "Glitch Art",
         'Data corruption artifacts, shifted color channels, interlaced scanlines, "cyber-decay" aesthetic.',  # noqa: E501
     ),
+    (
+        "Abstract Expressionism",
+        "chaotic drips and splatters, bold gestural strokes, emotional raw canvas, Pollock-inspired",  # noqa: E501
+    ),
+    (
+        "Art Nouveau",
+        "flowing organic lines, intricate floral motifs, elegant curves, Alphonse Mucha elegance",  # noqa: E501
+    ),
+    (
+        "Celtic Knot",
+        "interwoven patterns, infinite loops, illuminated manuscript borders, medieval symbolism",  # noqa: E501
+    ),
+    (
+        "Comic Strip",
+        "paneled layout, speech bubbles, bold onomatopoeia, sequential storytelling",
+    ),
+    (
+        "Cubism",
+        "fragmented angular forms, multiple viewpoints, muted earthy tones, Picasso geometry",  # noqa: E501
+    ),
+    (
+        "Cyberpunk",
+        "dystopian high-tech, flickering holograms, gritty urban decay, blade runner neon",  # noqa: E501
+    ),
+    (
+        "Egyptian Hieroglyph",
+        "flat profile figures, symbolic icons, papyrus texture, ancient Nile palette",
+    ),
+    (
+        "Graffiti Street Art",
+        "spray-paint drips, bold tags, urban wall texture, stencil overlays",
+    ),
+    (
+        "Mosaic Tile",
+        "tiny colored shards, grout lines, shimmering irregular patterns, Byzantine gleam",  # noqa: E501
+    ),
+    (
+        "Origami Fold",
+        "sharp paper creases, geometric polygons, floating shadow depth, minimalist craft",  # noqa: E501
+    ),
+    (
+        "Pointillism",
+        "dense color dots, optical blending, vibrant Seurat landscapes, stippled texture",  # noqa: E501
+    ),
+    (
+        "Steampunk",
+        "brass gears and pipes, Victorian leather, foggy industrial haze, retro-futuristic gadgets",  # noqa: E501
+    ),
+    (
+        "Surrealism",
+        "dreamlike impossibilities, floating elements, Dali melting clocks, subconscious symbolism",  # noqa: E501
+    ),
+    (
+        "Vintage Ad",
+        "retro 1950s illustrations, cheerful spot colors, kitschy slogans, magazine gloss",  # noqa: E501
+    ),
 ]
 
 

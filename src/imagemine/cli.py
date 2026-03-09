@@ -15,7 +15,13 @@ from rich.text import Text
 from rich.tree import Tree
 
 from ._album import _add_to_photos_album, _random_photo_from_album
-from ._config import _parse_args, _resolve_api_key, _resolve_option, _run_config_wizard
+from ._config import (
+    _parse_args,
+    _resolve_api_key,
+    _resolve_option,
+    _resolve_required_option,
+    _run_config_wizard,
+)
 from ._constants import DEFAULT_DB_PATH, DEFAULT_DESCRIPTION_MODEL, DEFAULT_IMAGE_MODEL
 from ._db import get_recent_runs, init_db, insert_run, update_run
 from ._describe import _get_description
@@ -177,31 +183,28 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         return
 
     if args.launchd is not None:
+        if args.launchd <= 0:
+            err("--launchd must be a positive integer.")
+            sys.exit(1)
         _write_launchd_plist(
             config_path=args.config_path,
-            interval_minutes=args.launchd if args.launchd > 0 else None,
+            interval_minutes=args.launchd,
         )
         return
 
-    desc_temp = float(
-        _resolve_option(
-            conn,
-            args.desc_temp,
-            "DEFAULT_DESC_TEMP",
-            default=1.0,
-            cast=float,
-        )
-        or 1.0,
+    desc_temp = _resolve_required_option(
+        conn,
+        args.desc_temp,
+        "DEFAULT_DESC_TEMP",
+        default=1.0,
+        cast=float,
     )
-    img_temp = float(
-        _resolve_option(
-            conn,
-            args.img_temp,
-            "DEFAULT_IMG_TEMP",
-            default=1.0,
-            cast=float,
-        )
-        or 1.0,
+    img_temp = _resolve_required_option(
+        conn,
+        args.img_temp,
+        "DEFAULT_IMG_TEMP",
+        default=1.0,
+        cast=float,
     )
     input_album = _resolve_option(
         conn,
@@ -215,32 +218,25 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         "DESTINATION_ALBUM",
         env_key="DESTINATION_ALBUM",
     )
-    claude_model = str(
-        _resolve_option(
-            conn,
-            None,
-            "CLAUDE_MODEL",
-            env_key="CLAUDE_MODEL",
-            default=DEFAULT_DESCRIPTION_MODEL,
-        )
-        or DEFAULT_DESCRIPTION_MODEL,
+    claude_model = _resolve_required_option(
+        conn,
+        None,
+        "CLAUDE_MODEL",
+        env_key="CLAUDE_MODEL",
+        default=DEFAULT_DESCRIPTION_MODEL,
     )
-    gemini_model = str(
-        _resolve_option(
-            conn,
-            None,
-            "GEMINI_MODEL",
-            env_key="GEMINI_MODEL",
-            default=DEFAULT_IMAGE_MODEL,
-        )
-        or DEFAULT_IMAGE_MODEL,
+    gemini_model = _resolve_required_option(
+        conn,
+        None,
+        "GEMINI_MODEL",
+        env_key="GEMINI_MODEL",
+        default=DEFAULT_IMAGE_MODEL,
     )
     anthropic_api_key = _resolve_api_key(
         conn,
         "ANTHROPIC_API_KEY",
         "Enter Anthropic API key",
     )
-    gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
 
     console.rule("[bold magenta]imagemine[/]")
 
@@ -285,11 +281,9 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
             conn,
             run_id,
             image,
-            input_path,
             desc_temp,
             anthropic_api_key,
             claude_model,
-            force=args.force,
             log=log_describe,
             err=err,
         )
@@ -344,6 +338,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
     # ── Step 5: Generate ──────────────────────────────────────────────────
     console.rule("[dim]Generate[/]", style="dim")
+    gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
 
     with Progress(
         SpinnerColumn(spinner_name="arc"),

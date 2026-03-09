@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     import sqlite3
     from collections.abc import Callable
 
-    from gemimg import ImageGen  # type: ignore[import-not-found]
+    from gemimg import ImageGen
     from PIL import Image
 
 

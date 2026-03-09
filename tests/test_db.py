@@ -130,27 +130,72 @@ def test_update_run_sets_multiple_fields() -> None:
 
 
 def test_lookup_description_returns_none_when_no_run() -> None:
-    assert lookup_description(_mem(), "/photo.jpg") is None
+    assert lookup_description(_mem(), "/photo.jpg", "claude-sonnet-4-0") is None
 
 
 def test_lookup_description_returns_none_when_description_not_set() -> None:
     conn = _mem()
     insert_run(conn, "/photo.jpg")
-    assert lookup_description(conn, "/photo.jpg") is None
+    assert lookup_description(conn, "/photo.jpg", "claude-sonnet-4-0") is None
 
 
 def test_lookup_description_finds_existing_description() -> None:
     conn = _mem()
     run_id = insert_run(conn, "/photo.jpg")
-    update_run(conn, run_id, generated_description="lovely scene")
-    assert lookup_description(conn, "/photo.jpg") == "lovely scene"
+    update_run(
+        conn,
+        run_id,
+        generated_description="lovely scene",
+        description_model_name="claude-sonnet-4-0",
+    )
+    assert (
+        lookup_description(conn, "/photo.jpg", "claude-sonnet-4-0") == "lovely scene"
+    )
 
 
 def test_lookup_description_ignores_other_paths() -> None:
     conn = _mem()
     run_id = insert_run(conn, "/a.jpg")
-    update_run(conn, run_id, generated_description="photo A")
-    assert lookup_description(conn, "/b.jpg") is None
+    update_run(
+        conn,
+        run_id,
+        generated_description="photo A",
+        description_model_name="claude-sonnet-4-0",
+    )
+    assert lookup_description(conn, "/b.jpg", "claude-sonnet-4-0") is None
+
+
+def test_lookup_description_ignores_other_models() -> None:
+    conn = _mem()
+    run_id = insert_run(conn, "/photo.jpg")
+    update_run(
+        conn,
+        run_id,
+        generated_description="old model output",
+        description_model_name="claude-sonnet-4-0",
+    )
+
+    assert lookup_description(conn, "/photo.jpg", "claude-haiku-4-0") is None
+
+
+def test_lookup_description_returns_latest_match_for_model() -> None:
+    conn = _mem()
+    first_run = insert_run(conn, "/photo.jpg")
+    second_run = insert_run(conn, "/photo.jpg")
+    update_run(
+        conn,
+        first_run,
+        generated_description="first output",
+        description_model_name="claude-sonnet-4-0",
+    )
+    update_run(
+        conn,
+        second_run,
+        generated_description="second output",
+        description_model_name="claude-sonnet-4-0",
+    )
+
+    assert lookup_description(conn, "/photo.jpg", "claude-sonnet-4-0") == "second output"
 
 
 # ---------------------------------------------------------------------------

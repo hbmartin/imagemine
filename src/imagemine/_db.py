@@ -90,11 +90,18 @@ def avg_duration_ms(conn: sqlite3.Connection, column: str) -> float | None:
     return float(val) if val is not None else None
 
 
-def lookup_description(conn: sqlite3.Connection, input_file_path: str) -> str | None:
+def lookup_description(
+    conn: sqlite3.Connection,
+    input_file_path: str,
+    model: str,
+) -> str | None:
     row = conn.execute(
         "SELECT generated_description FROM runs "
-        "WHERE input_file_path = ? AND generated_description IS NOT NULL LIMIT 1",
-        (input_file_path,),
+        "WHERE input_file_path = ? "
+        "AND description_model_name = ? "
+        "AND generated_description IS NOT NULL "
+        "ORDER BY id DESC LIMIT 1",
+        (input_file_path, model),
     ).fetchone()
     return row[0] if row else None
 

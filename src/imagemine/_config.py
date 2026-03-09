@@ -3,7 +3,8 @@
 import argparse
 import os
 import sys
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, TypeVar, overload
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -13,6 +14,8 @@ from ._db import get_config, set_config
 
 if TYPE_CHECKING:
     import sqlite3
+
+T = TypeVar("T")
 
 
 def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
@@ -34,26 +37,91 @@ def _resolve_api_key(conn: sqlite3.Connection, key: str, prompt: str) -> str:
     return value
 
 
-def _resolve_option(  # noqa: PLR0913
+@overload
+def _resolve_option(
     conn: sqlite3.Connection,
-    cli_value: str | float | None,
+    cli_value: str | None,
     config_key: str,
     *,
     env_key: str | None = None,
-    default: str | float | None = None,
-    cast: type = str,
-) -> str | float | None:
-    """Resolve option via: CLI flag → DB config key → env var → default."""
+    cast: Callable[[str], str] = str,
+) -> str | None: ...
+
+
+@overload
+def _resolve_option(
+    conn: sqlite3.Connection,
+    cli_value: T | None,
+    config_key: str,
+    *,
+    env_key: str | None = None,
+    cast: Callable[[str], T],
+) -> T | None: ...
+
+
+def _resolve_option(
+    conn: sqlite3.Connection,
+    cli_value: T | None,
+    config_key: str,
+    *,
+    env_key: str | None = None,
+    cast: Callable[[str], T] = str,
+) -> T | None:
+    """Resolve an optional config value via CLI flag → DB → env var."""
     if cli_value is not None:
         return cli_value
     stored = get_config(conn, config_key)
     if stored is not None:
-        return cast(stored)  # type: ignore[return-value]
+        return cast(stored)
     if env_key is not None:
         env_val = os.environ.get(env_key)
         if env_val is not None:
-            return cast(env_val)  # type: ignore[return-value]
-    return default
+            return cast(env_val)
+    return None
+
+
+@overload
+def _resolve_required_option(
+    conn: sqlite3.Connection,
+    cli_value: str | None,
+    config_key: str,
+    *,
+    env_key: str | None = None,
+    default: str,
+    cast: Callable[[str], str] = str,
+) -> str: ...
+
+
+@overload
+def _resolve_required_option(
+    conn: sqlite3.Connection,
+    cli_value: T | None,
+    config_key: str,
+    *,
+    env_key: str | None = None,
+    default: T,
+    cast: Callable[[str], T],
+) -> T: ...
+
+
+def _resolve_required_option(
+    conn: sqlite3.Connection,
+    cli_value: T | None,
+    config_key: str,
+    *,
+    env_key: str | None = None,
+    default: T,
+    cast: Callable[[str], T] = str,
+) -> T:
+    """Resolve a required config value via CLI flag → DB → env var → default."""
+    resolved = _resolve_option(
+        conn,
+        cli_value,
+        config_key,
+        env_key=env_key,
+        cast=cast,
+    )
+    return default if resolved is None else resolved
 
 
 _CONFIG_FIELDS: list[tuple[str, str, bool]] = [
@@ -156,11 +224,6 @@ def _parse_args() -> argparse.Namespace:
         "--add-style",
         action="store_true",
         help="Interactively add a new style to the database and exit",
-    )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Ignore cached description and regenerate from scratch",
     )
     parser.add_argument(
         "--silent",
