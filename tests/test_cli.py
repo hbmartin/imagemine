@@ -84,6 +84,7 @@ def _base_args(tmp_path, **overrides) -> SimpleNamespace:
         "destination_album": None,
         "story": None,
         "style": None,
+        "fresh": False,
         "list_styles": False,
         "add_style": False,
         "remove_style": False,
@@ -96,6 +97,27 @@ def _base_args(tmp_path, **overrides) -> SimpleNamespace:
     }
     values.update(overrides)
     return SimpleNamespace(**values)
+
+
+def _pipeline_kwargs(**overrides) -> dict:
+    """Return a minimal set of explicit run_pipeline keyword arguments."""
+    defaults = {
+        "image_path": None,
+        "input_album": None,
+        "destination_album": None,
+        "desc_temp": 1.0,
+        "img_temp": 1.0,
+        "claude_model": "claude-model",
+        "gemini_model": "gemini-model",
+        "anthropic_api_key": "key",
+        "gemini_api_key": "key",
+        "story": None,
+        "style": None,
+        "fresh": False,
+        "session_svg": False,
+    }
+    defaults.update(overrides)
+    return defaults
 
 
 def test_validate_input_returns_resolved_path(monkeypatch, tmp_path) -> None:
@@ -209,7 +231,7 @@ def test_resolve_input_album_returns_cleanup_dir(monkeypatch, tmp_path) -> None:
     assert cleanup_dir == export_dir
 
 
-def test_run_pipeline_cleans_up_temp_files_and_exits_on_album_import_failure(
+def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
     monkeypatch,
     tmp_path,
 ) -> None:
@@ -224,30 +246,9 @@ def test_run_pipeline_cleans_up_temp_files_and_exits_on_album_import_failure(
     resized_path.write_bytes(b"resized")
     output_path = output_dir / "generated.png"
     output_path.write_bytes(b"generated")
-    args = _base_args(
-        tmp_path,
-        image_path=None,
-        input_album="Album",
-        destination_album="Dest",
-    )
     updates = []
+    summary_calls = []
 
-    monkeypatch.setattr(
-        pipeline,
-        "_resolve_required_option",
-        lambda _conn, value, key, **_kwargs: {
-            "DEFAULT_DESC_TEMP": 1.0,
-            "DEFAULT_IMG_TEMP": 1.0,
-            "CLAUDE_MODEL": "claude-model",
-            "GEMINI_MODEL": "gemini-model",
-        }[key],
-    )
-    monkeypatch.setattr(
-        pipeline,
-        "_resolve_option",
-        lambda _conn, value, key, **_kwargs: value,
-    )
-    monkeypatch.setattr(pipeline, "_resolve_api_key", lambda *_args, **_kwargs: "key")
     monkeypatch.setattr(
         pipeline,
         "_resolve_input",
@@ -277,28 +278,68 @@ def test_run_pipeline_cleans_up_temp_files_and_exits_on_album_import_failure(
     )
     monkeypatch.setattr(
         pipeline,
+        "_print_summary",
+        lambda *args: summary_calls.append(args),
+    )
+    monkeypatch.setattr(
+        pipeline,
         "_add_to_photos_album",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("import failed")),
     )
 
     errors = []
 
-    with pytest.raises(SystemExit) as exc_info:
-        pipeline.run_pipeline(
-            args,
-            conn=object(),
-            console=Console(quiet=True),
-            err=errors.append,
-            t_start=0.0,
-            output_dir=output_dir,
-        )
+    pipeline.run_pipeline(
+        object(),
+        Console(quiet=True),
+        errors.append,
+        0.0,
+        output_dir,
+        **_pipeline_kwargs(input_album="Album", destination_album="Dest"),
+    )
 
-    assert exc_info.value.code == 1
     assert errors == ["Failed to add to Photos album 'Dest': import failed"]
+    assert len(summary_calls) == 1
     assert not resized_path.exists()
     assert not export_dir.exists()
     assert updates[0] == (7, {"input_album_photo_id": "photo-id-123"})
     assert updates[1] == (7, {"resized_file_path": str(resized_path)})
+
+
+def test_run_pipeline_cleans_up_export_dir_if_insert_run_fails(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    pipeline = _import_pipeline(monkeypatch)
+    export_dir = tmp_path / "album-export"
+    export_dir.mkdir()
+    exported_file = export_dir / "input.jpg"
+    exported_file.write_bytes(b"input")
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    monkeypatch.setattr(
+        pipeline,
+        "_resolve_input",
+        lambda *_args, **_kwargs: (str(exported_file), "photo-id-123", export_dir),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "insert_run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("db failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="db failed"):
+        pipeline.run_pipeline(
+            object(),
+            Console(quiet=True),
+            lambda _msg: None,
+            0.0,
+            output_dir,
+            **_pipeline_kwargs(input_album="Album"),
+        )
+
+    assert not export_dir.exists()
 
 
 def test_main_stops_when_subcommand_is_handled(monkeypatch, tmp_path) -> None:
@@ -317,7 +358,7 @@ def test_main_stops_when_subcommand_is_handled(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
         cli,
         "run_pipeline",
-        lambda *run_args: pipeline_calls.append(run_args),
+        lambda *run_args, **run_kwargs: pipeline_calls.append((run_args, run_kwargs)),
     )
 
     cli.main()
@@ -345,19 +386,22 @@ def test_main_runs_pipeline_with_resolved_paths(monkeypatch, tmp_path) -> None:
         lambda db_path: init_db_calls.append(db_path) or fake_conn,
     )
     monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
+    monkeypatch.setattr(cli, "_resolve_required_option", lambda *_a, default, **_kw: default)
+    monkeypatch.setattr(cli, "_resolve_option", lambda *_a, **_kw: None)
+    monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
     monkeypatch.setattr(
         cli,
         "run_pipeline",
-        lambda *run_args: pipeline_calls.append(run_args),
+        lambda *run_args, **run_kwargs: pipeline_calls.append((run_args, run_kwargs)),
     )
 
     cli.main()
 
     assert init_db_calls == [pathlib.Path(args.config_path).expanduser()]
     assert len(pipeline_calls) == 1
-    called_args, called_conn, _console, _err, t_start, output_dir = pipeline_calls[0]
-    assert called_args is args
-    assert called_conn is fake_conn
+    positional, kwargs = pipeline_calls[0]
+    conn, _console, _err, t_start, output_dir = positional
+    assert conn is fake_conn
     assert isinstance(t_start, float)
     assert output_dir == pathlib.Path(args.output_dir).resolve()
 
@@ -370,14 +414,17 @@ def test_main_passes_story_to_pipeline(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(cli, "_parse_args", lambda: args)
     monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
     monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
+    monkeypatch.setattr(cli, "_resolve_required_option", lambda *_a, default, **_kw: default)
+    monkeypatch.setattr(cli, "_resolve_option", lambda *_a, **_kw: None)
+    monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
     monkeypatch.setattr(
         cli,
         "run_pipeline",
-        lambda *run_args: pipeline_calls.append(run_args),
+        lambda *run_args, **run_kwargs: pipeline_calls.append((run_args, run_kwargs)),
     )
 
     cli.main()
 
     assert len(pipeline_calls) == 1
-    called_args, *_rest = pipeline_calls[0]
-    assert called_args.story == "some story"
+    _positional, kwargs = pipeline_calls[0]
+    assert kwargs["story"] == "some story"

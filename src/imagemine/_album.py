@@ -49,14 +49,15 @@ def _add_to_photos_album(
 
 
 def _random_photo_from_album(
-    album_name: str, max_attempts: int = 10,
+    album_name: str,
+    max_attempts: int = 10,
 ) -> tuple[str, str, pathlib.Path]:
     """Export a random photo from a macOS Photos album, skipping .mov files.
 
     Returns (exported_file_path, photos_item_id, export_dir).
     """
     safe_album = _as_escape(album_name)
-    script = "\n".join(
+    base_script = "\n".join(
         [
             'tell application "Photos"',
             f'    set theAlbums to every album whose name is "{safe_album}"',
@@ -67,18 +68,18 @@ def _random_photo_from_album(
             "    if (count of theItems) = 0 then",
             f'        error "Album is empty: {safe_album}"',
             "    end if",
-            "    set idx to (random number from 1 to (count of theItems)) as integer",
-            "    set thePhoto to item idx of theItems",
         ],
     )
 
     for _ in range(max_attempts):
         tmp_dir = pathlib.Path(tempfile.mkdtemp(prefix="imagemine_input_"))
         full_script = (
-            script
+            base_script
             + "\n"
             + "\n".join(
                 [
+                    "    set idx to (random number from 1 to (count of theItems)) as integer",
+                    "    set thePhoto to item idx of theItems",
                     f'    export {{thePhoto}} to POSIX file "{tmp_dir}"',
                     "    return id of thePhoto",
                     "end tell",
@@ -101,8 +102,8 @@ def _random_photo_from_album(
             shutil.rmtree(tmp_dir, ignore_errors=True)
             msg = f"No photo exported from album {album_name!r}"
             raise RuntimeError(msg)
-        exported = files[0]
-        if exported.suffix.lower() == ".mov":
+        exported = next((path for path in files if path.suffix.lower() != ".mov"), None)
+        if exported is None:
             shutil.rmtree(tmp_dir, ignore_errors=True)
             continue
         photo_id = result.stdout.strip()

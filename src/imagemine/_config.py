@@ -220,6 +220,14 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help=(
+            "Pick the style randomly from the least-used styles"
+            " (ignored when --style is given)"
+        ),
+    )
+    parser.add_argument(
         "--list-styles",
         action="store_true",
         help="Show all styles in the database as a table and exit",

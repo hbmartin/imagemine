@@ -12,20 +12,16 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.text import Text
-from rich.tree import Tree
 
 from ._album import _add_to_photos_album, _random_photo_from_album
-from ._config import _resolve_api_key, _resolve_option, _resolve_required_option
-from ._constants import DEFAULT_DESCRIPTION_MODEL, DEFAULT_IMAGE_MODEL
 from ._db import insert_run, update_run
 from ._describe import _get_description
 from ._display import _print_summary
 from ._generate import _run_generation
 from ._image import resize_image
-from ._styles import increment_style_count, random_style
+from ._styles import increment_style_count, least_used_style, random_style
 
 if TYPE_CHECKING:
-    import argparse
     import sqlite3
     from collections.abc import Callable
 
@@ -67,75 +63,43 @@ def _resolve_input(
     sys.exit(1)
 
 
-def run_pipeline(  # noqa: C901, PLR0913, PLR0915
-    args: argparse.Namespace,
+def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
     conn: sqlite3.Connection,
     console: Console,
     err: Callable[[str], None],
     t_start: float,
     output_dir: pathlib.Path,
+    *,
+    image_path: str | None,
+    input_album: str | None,
+    destination_album: str | None,
+    desc_temp: float,
+    img_temp: float,
+    claude_model: str,
+    gemini_model: str,
+    anthropic_api_key: str,
+    gemini_api_key: str,
+    story: str | None,
+    style: str | None,
+    fresh: bool,
+    session_svg: bool,
 ) -> None:
     """Run the full resize → describe → style → generate pipeline."""
-    desc_temp = _resolve_required_option(
-        conn,
-        args.desc_temp,
-        "DEFAULT_DESC_TEMP",
-        default=1.0,
-        cast=float,
-    )
-    img_temp = _resolve_required_option(
-        conn,
-        args.img_temp,
-        "DEFAULT_IMG_TEMP",
-        default=1.0,
-        cast=float,
-    )
-    input_album = _resolve_option(
-        conn,
-        args.input_album,
-        "INPUT_ALBUM",
-        env_key="INPUT_ALBUM",
-    )
-    destination_album = _resolve_option(
-        conn,
-        args.destination_album,
-        "DESTINATION_ALBUM",
-        env_key="DESTINATION_ALBUM",
-    )
-    claude_model = _resolve_required_option(
-        conn,
-        None,
-        "CLAUDE_MODEL",
-        env_key="CLAUDE_MODEL",
-        default=DEFAULT_DESCRIPTION_MODEL,
-    )
-    gemini_model = _resolve_required_option(
-        conn,
-        None,
-        "GEMINI_MODEL",
-        env_key="GEMINI_MODEL",
-        default=DEFAULT_IMAGE_MODEL,
-    )
-    anthropic_api_key = _resolve_api_key(
-        conn,
-        "ANTHROPIC_API_KEY",
-        "Enter Anthropic API key",
-    )
-
     console.rule("[bold magenta]imagemine[/]")
 
     # ── Step 1: Resolve input ──────────────────────────────────────────────
     input_path, input_album_photo_id, input_export_dir = _resolve_input(
-        args.image_path,
-        str(input_album) if input_album else None,
+        image_path,
+        input_album,
         log=lambda msg: console.print(f"  [dim]{msg}[/]"),
         err=err,
     )
-    run_id = insert_run(conn, input_path)
-    if input_album_photo_id:
-        update_run(conn, run_id, input_album_photo_id=input_album_photo_id)
     resized_path: pathlib.Path | None = None
     try:
+        run_id = insert_run(conn, input_path)
+        if input_album_photo_id:
+            update_run(conn, run_id, input_album_photo_id=input_album_photo_id)
+
         # ── Step 2: Resize ────────────────────────────────────────────────
         try:
             image, resized_path = resize_image(input_path, output_dir)
@@ -166,7 +130,7 @@ def run_pipeline(  # noqa: C901, PLR0913, PLR0915
                 desc_temp,
                 anthropic_api_key,
                 claude_model,
-                getattr(args, "story", None),
+                story,
                 log=log_describe,
                 err=err,
             )
@@ -183,40 +147,39 @@ def run_pipeline(  # noqa: C901, PLR0913, PLR0915
         # ── Step 4: Style ─────────────────────────────────────────────────
         console.rule("[dim]Style[/]", style="dim")
         style_name: str | None
-        style: str | None
-        if args.style:
+        if style:
             style_name = None
-            style = args.style
-            tree = Tree("[bold]Style (custom)[/]")
-            label = Text()
-            label.append(f"✦ {style}", style="bold magenta")
-            tree.add(label)
-            console.print(tree)
+            content = Text()
+            content.append(f"✦ {style}", style="bold magenta")
+            console.print(
+                Panel(content, title="[bold]Style (custom)[/]", border_style="magenta"),
+            )
             description = f"{description}\n\nStyle: {style}"
-            update_run(conn, run_id, style=args.style)
+            update_run(conn, run_id, style=style)
         else:
-            style_name, style_desc = random_style(conn)
+            style_name, style_desc = (
+                least_used_style(conn) if fresh else random_style(conn)
+            )
             style = f"{style_name}: {style_desc}" if style_name else None
 
             if style and style_name:
-                tree = Tree("[bold]Selected style[/]")
-                label = Text()
-                label.append(f"✦ {style_name}", style="bold magenta")
+                content = Text()
+                content.append(f"✦ {style_name}", style="bold magenta")
                 if style_desc:
-                    label.append(f"  —  {style_desc}", style="dim")
-                tree.add(label)
-                console.print(tree)
+                    content.append(f"  —  {style_desc}", style="dim")
+                console.print(
+                    Panel(
+                        content,
+                        title="[bold]Selected Style[/]",
+                        border_style="magenta",
+                    ),
+                )
                 description = f"{description}\n\nStyle: {style}"
                 update_run(conn, run_id, style=style)
                 increment_style_count(conn, style_name)
 
         # ── Step 5: Generate ──────────────────────────────────────────────
         console.rule("[dim]Generate[/]", style="dim")
-        gemini_api_key = _resolve_api_key(
-            conn,
-            "GEMINI_API_KEY",
-            "Enter Gemini API key",
-        )
 
         with Progress(
             SpinnerColumn(spinner_name="smiley"),
@@ -246,10 +209,9 @@ def run_pipeline(  # noqa: C901, PLR0913, PLR0915
         # ── Step 6: Add to Photos album (optional) ────────────────────────
         if destination_album:
             try:
-                _add_to_photos_album(output_path, str(destination_album), description)
+                _add_to_photos_album(output_path, destination_album, description)
             except Exception as e:
                 err(f"Failed to add to Photos album {destination_album!r}: {e}")
-                sys.exit(1)
             else:
                 console.print(
                     f"  [dim]Added to Photos album:[/] [cyan]{destination_album}[/]",
@@ -269,7 +231,7 @@ def run_pipeline(  # noqa: C901, PLR0913, PLR0915
         )
 
         # ── Session SVG (optional) ────────────────────────────────────────
-        if args.session_svg:
+        if session_svg:
             svg_path = output_dir / f"imagemine_{run_id}.svg"
             console.save_svg(str(svg_path), title="imagemine")
             console.print(f"  [dim]Session saved:[/] [cyan]{svg_path}[/]")
