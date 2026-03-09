@@ -3,7 +3,7 @@ import sys
 import time
 from typing import TYPE_CHECKING
 
-from gemimg import GemImg
+from gemimg import GemImg, ImageGen
 
 from ._constants import DEFAULT_IMAGE_MODEL
 from ._db import avg_duration_ms, update_run
@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     import sqlite3
     from collections.abc import Callable
 
-    from gemimg import ImageGen
     from PIL import Image
 
 
@@ -64,7 +63,7 @@ def _run_generation(  # noqa: PLR0913
             save_dir=str(output_dir),
             model=model,
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         err(f"Image generation failed: {e}")
         sys.exit(1)
     img_gen_ms = round((time.monotonic() - t0) * 1000)
@@ -72,8 +71,6 @@ def _run_generation(  # noqa: PLR0913
     if result is None:
         err("Image generation returned no result.")
         sys.exit(1)
-
-    from gemimg import ImageGen  # noqa: PLC0415
 
     if not isinstance(result, ImageGen) or not result.image_path:
         err(f"Image generation returned unexpected result: {result!r}")

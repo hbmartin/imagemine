@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import sys
 from typing import TYPE_CHECKING
+from xml.sax.saxutils import escape
 
 from rich.console import Console
 from rich.prompt import IntPrompt
@@ -102,7 +103,9 @@ def _write_launchd_plist(
     if config_path:
         program_args.extend(["--config-path", config_path])
 
-    args_xml = "\n".join(f"        <string>{arg}</string>" for arg in program_args)
+    args_xml = "\n".join(
+        f"        <string>{escape(arg)}</string>" for arg in program_args
+    )
     plist_content = _PLIST_TEMPLATE.format(
         args=args_xml,
         interval=minutes * 60,
