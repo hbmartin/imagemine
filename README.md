@@ -77,6 +77,8 @@ sqlite3 imagemine.db "INSERT OR REPLACE INTO config (key, value) VALUES ('GEMINI
 | `--destination-album` | DB / env   | macOS Photos album to import the generated image into    |
 | `--force`             | off        | Ignore cached description and regenerate from scratch    |
 | `--silent`            | off        | Suppress all printed output                              |
+| `--config`            | —          | Interactively configure settings and exit                |
+| `--history`           | —          | Show recent runs as a table and exit                     |
 
 ### Examples
 

@@ -213,15 +213,17 @@ def get_recent_runs(
 ) -> list[tuple[str | None, ...]]:
     """Return the most recent runs for display, newest first."""
     return conn.execute(
-        "SELECT started_at, input_file_path, style, desc_gen_ms, img_gen_ms, output_image_path "
-        "FROM runs ORDER BY id DESC LIMIT ?",
+        "SELECT started_at, input_file_path, style,"
+        " desc_gen_ms, img_gen_ms, output_image_path"
+        " FROM runs ORDER BY id DESC LIMIT ?",
         (limit,),
     ).fetchall()
 
 
 def increment_style_count(conn: sqlite3.Connection, name: str) -> None:
     conn.execute(
-        "UPDATE styles SET used_count = used_count + 1 WHERE name = ?", (name,),
+        "UPDATE styles SET used_count = used_count + 1 WHERE name = ?",
+        (name,),
     )
     conn.commit()
 

@@ -5,6 +5,10 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
+from rich.console import Console
+from rich.prompt import Prompt
+from rich.rule import Rule
+
 from ._db import get_config, set_config
 
 if TYPE_CHECKING:
@@ -44,6 +48,48 @@ def _resolve_option(  # noqa: PLR0913
         if env_val is not None:
             return cast(env_val)  # type: ignore[return-value]
     return default
+
+
+_CONFIG_FIELDS: list[tuple[str, str, bool]] = [
+    ("ANTHROPIC_API_KEY", "Anthropic API key", True),
+    ("GEMINI_API_KEY", "Gemini API key", True),
+    ("INPUT_ALBUM", "Input Photos album", False),
+    ("DESTINATION_ALBUM", "Destination Photos album", False),
+    ("DEFAULT_DESC_TEMP", "Default description temperature", False),
+    ("DEFAULT_IMG_TEMP", "Default image temperature", False),
+]
+
+
+def _run_config_wizard(conn: sqlite3.Connection) -> None:
+    """Interactively walk the user through all configurable keys."""
+    console = Console()
+    console.print(Rule("[bold magenta]imagemine config[/]"))
+    console.print(
+        "[dim]Press Enter to keep the existing value. Leave blank to skip.[/]\n",
+    )
+
+    for key, label, is_secret in _CONFIG_FIELDS:
+        current = get_config(conn, key)
+
+        if is_secret:
+            hint = " [dim](stored)[/]" if current else " [dim](not set)[/]"
+            console.print(f"[bold]{label}[/]{hint}")
+            new_val = Prompt.ask(f"  [cyan]{key}[/]", password=True, default="")
+            if new_val:
+                set_config(conn, key, new_val)
+                console.print(f"  [green]✓ {key} saved[/]")
+        else:
+            new_val = Prompt.ask(
+                f"[bold]{label}[/] [dim]({key})[/]",
+                default=current or "",
+                show_default=bool(current),
+            )
+            if new_val:
+                set_config(conn, key, new_val)
+                console.print("  [green]✓ saved[/]")
+
+    console.print()
+    console.print(Rule("[dim]done[/]"))
 
 
 def _parse_args() -> argparse.Namespace:
@@ -103,5 +149,10 @@ def _parse_args() -> argparse.Namespace:
         "--history",
         action="store_true",
         help="Show recent runs as a table and exit",
+    )
+    parser.add_argument(
+        "--config",
+        action="store_true",
+        help="Interactively configure imagemine settings and exit",
     )
     return parser.parse_args()
