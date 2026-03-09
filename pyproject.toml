@@ -61,6 +61,7 @@ imagemine = "imagemine.cli:main"
 [dependency-groups]
 dev = [
     "black>=26.3.0",
+    "codecov>=2.1.13",
     "pyrefly>=0.55.0",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
@@ -70,6 +71,9 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.coverage.report]
+relative_files = true
 
 [tool.black]
 line-length = 88
