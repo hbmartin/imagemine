@@ -1,10 +1,5 @@
-import pathlib
-import sys
-
 import pytest
 from PIL import Image, PngImagePlugin
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from imagemine._image import write_png_metadata
 

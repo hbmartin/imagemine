@@ -1,8 +1,5 @@
 import pathlib
 import sqlite3
-import sys
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from imagemine._db import (
     avg_duration_ms,
@@ -35,10 +32,14 @@ def test_init_db_seeds_styles(conn) -> None:
     assert count > 0
 
 
-def test_init_db_is_idempotent() -> None:
+def test_init_db_is_idempotent(tmp_path: pathlib.Path) -> None:
     # Calling init_db a second time on the same path should not raise.
-    c = init_db(":memory:")
-    c.close()
+    db_path = tmp_path / "test.db"
+    conn1 = init_db(db_path)
+    conn1.close()
+
+    conn2 = init_db(db_path)
+    conn2.close()
 
 
 # ---------------------------------------------------------------------------

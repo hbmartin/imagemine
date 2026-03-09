@@ -1,10 +1,7 @@
 import pathlib
-import sys
 import types
 
 import pytest
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 import imagemine._launchd as lm
 from imagemine._launchd import _write_launchd_plist
@@ -32,7 +29,9 @@ def test_requires_uvx_on_path(launchd_conn, monkeypatch, tmp_path) -> None:
     assert exc_info.value.code == 1
 
 
-def test_start_interval_is_minutes_times_60(launchd_conn, monkeypatch, tmp_path) -> None:
+def test_start_interval_is_minutes_times_60(
+    launchd_conn, monkeypatch, tmp_path
+) -> None:
     plist_path = _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)
     monkeypatch.setattr(lm.shutil, "which", lambda _name: "/usr/local/bin/uvx")

@@ -1,10 +1,7 @@
 import pathlib
 import subprocess
-import sys
 
 import pytest
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from imagemine._album import _add_to_photos_album, _random_photo_from_album
 
