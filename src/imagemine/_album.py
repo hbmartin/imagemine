@@ -1,6 +1,7 @@
 """macOS Photos album integration via osascript."""
 
 import pathlib
+import shutil
 import subprocess
 import tempfile
 
@@ -47,12 +48,12 @@ def _add_to_photos_album(
         raise RuntimeError(msg)
 
 
-def _random_photo_from_album(album_name: str) -> tuple[str, str]:
+def _random_photo_from_album(album_name: str) -> tuple[str, str, pathlib.Path]:
     """Export a random photo from a macOS Photos album.
 
-    Returns (exported_file_path, photos_item_id).
+    Returns (exported_file_path, photos_item_id, export_dir).
     """
-    tmp_dir = tempfile.mkdtemp(prefix="imagemine_input_")
+    tmp_dir = pathlib.Path(tempfile.mkdtemp(prefix="imagemine_input_"))
     safe_album = _as_escape(album_name)
     script = "\n".join(
         [
@@ -79,13 +80,15 @@ def _random_photo_from_album(album_name: str) -> tuple[str, str]:
         check=False,
     )
     if result.returncode != 0:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         msg = (
             f"Failed to fetch photo from album {album_name!r}: {result.stderr.strip()}"
         )
         raise RuntimeError(msg)
-    files = list(pathlib.Path(tmp_dir).iterdir())
+    files = list(tmp_dir.iterdir())
     if not files:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         msg = f"No photo exported from album {album_name!r}"
         raise RuntimeError(msg)
     photo_id = result.stdout.strip()
-    return str(files[0]), photo_id
+    return str(files[0]), photo_id, tmp_dir
