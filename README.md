@@ -91,6 +91,7 @@ imagemine --config
 | `--list-styles`       | —          | Show all styles in the database as a table and exit      |
 | `--add-style`         | —          | Interactively add a new style to the database and exit   |
 | `--remove-style`      | —          | Interactively select and remove styles from the database and exit |
+| `--aspect-ratio RATIO`| DB / env / `4:3` | Aspect ratio for generated image (see [supported ratios](https://ai.google.dev/gemini-api/docs/image-generation#aspect_ratios_and_image_size), e.g. `1:1`, `3:4`, `4:3`, `9:16`, `16:9`) |
 | `--destination-album` | DB / env   | macOS Photos album to import the generated image into    |
 | `--silent`            | off        | Suppress all printed output                              |
 | `--config`            | —          | Interactively configure settings and exit                |
@@ -200,6 +201,7 @@ The wizard walks through each key in order, pre-populates non-secret fields with
 | `GEMINI_MODEL`      | Gemini model to use for image generation (default: `gemini-3-pro-image-preview`) |
 | `INPUT_ALBUM`       | macOS Photos album to pick a random input image from         |
 | `DESTINATION_ALBUM` | macOS Photos album name to import generated images into      |
+| `ASPECT_RATIO`      | Aspect ratio for generated images (default: `4:3`); must be a ratio listed at [the Gemini docs](https://ai.google.dev/gemini-api/docs/image-generation#aspect_ratios_and_image_size) |
 
 ## Apple TV screensaver
 

@@ -435,6 +435,7 @@ def test_cli_main_runs_pipeline_with_resolved_values(
         story="story",
         style="custom style",
         fresh=True,
+        aspect_ratio="16:9",
     )
     pipeline_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
     required_calls: list[tuple[str, str | None, object]] = []
@@ -493,6 +494,7 @@ def test_cli_main_runs_pipeline_with_resolved_values(
         ("DESTINATION_ALBUM", "cli-destination", "DESTINATION_ALBUM"),
         ("DESCRIPTION_PROMPT_SUFFIX", None, "DESCRIPTION_PROMPT_SUFFIX"),
         ("GENERATION_PROMPT_SUFFIX", None, "GENERATION_PROMPT_SUFFIX"),
+        ("ASPECT_RATIO", "16:9", "ASPECT_RATIO"),
     ]
     pipeline_args, pipeline_kwargs = pipeline_calls[0]
     assert pipeline_args[:4] == (
@@ -518,6 +520,7 @@ def test_cli_main_runs_pipeline_with_resolved_values(
         "session_svg": True,
         "desc_prompt_suffix": "resolved-description_prompt_suffix",
         "gen_prompt_suffix": "resolved-generation_prompt_suffix",
+        "aspect_ratio": "resolved-aspect_ratio",
     }
 
 
@@ -540,6 +543,7 @@ def test_cli_main_err_prints_exception_when_called_during_handled_failure(
         story=None,
         style=None,
         fresh=False,
+        aspect_ratio=None,
     )
 
     monkeypatch.setattr(cli, "Console", lambda **_kwargs: fake_console)

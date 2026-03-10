@@ -130,6 +130,7 @@ _CONFIG_FIELDS: list[tuple[str, str, bool]] = [
     ("GEMINI_MODEL", "Gemini model override", False),
     ("DESCRIPTION_PROMPT_SUFFIX", "Description prompt suffix", False),
     ("GENERATION_PROMPT_SUFFIX", "Generation prompt suffix", False),
+    ("ASPECT_RATIO", "Image aspect ratio", False),
 ]
 
 
@@ -269,6 +270,17 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         metavar="PATH",
         help="Path to the imagemine database (default: ~/.imagemine.db)",
+    )
+    parser.add_argument(
+        "--aspect-ratio",
+        default=None,
+        metavar="RATIO",
+        help=(
+            "Aspect ratio for the generated image (overrides DB / ASPECT_RATIO env)."
+            " Must be one of the ratios listed at"
+            " https://ai.google.dev/gemini-api/docs/image-generation#aspect_ratios_and_image_size"
+            " (e.g. '1:1', '3:4', '4:3', '9:16', '16:9')."
+        ),
     )
     parser.add_argument(
         "--launchd",

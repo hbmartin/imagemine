@@ -94,6 +94,7 @@ def _base_args(tmp_path, **overrides) -> SimpleNamespace:
         "session_svg": False,
         "config_path": None,
         "launchd": None,
+        "aspect_ratio": None,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
