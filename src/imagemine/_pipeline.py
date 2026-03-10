@@ -107,6 +107,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
     session_svg: bool,
     desc_prompt_suffix: str | None = None,
     gen_prompt_suffix: str | None = None,
+    aspect_ratio: str | None = None,
 ) -> None:
     """Run the full resize → describe → style → generate pipeline."""
     console.rule("[bold magenta]imagemine[/]")
@@ -208,6 +209,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 api_key=gemini_api_key,
                 output_dir=output_dir,
                 model=gemini_model,
+                aspect_ratio=aspect_ratio or "4:3",
                 log=log_generate,
                 err=err,
             )

@@ -100,6 +100,12 @@ def main() -> None:
         "GENERATION_PROMPT_SUFFIX",
         env_key="GENERATION_PROMPT_SUFFIX",
     )
+    aspect_ratio = _resolve_option(
+        conn,
+        args.aspect_ratio,
+        "ASPECT_RATIO",
+        env_key="ASPECT_RATIO",
+    )
 
     run_pipeline(
         conn,
@@ -122,4 +128,5 @@ def main() -> None:
         session_svg=args.session_svg,
         desc_prompt_suffix=desc_prompt_suffix,
         gen_prompt_suffix=gen_prompt_suffix,
+        aspect_ratio=aspect_ratio,
     )

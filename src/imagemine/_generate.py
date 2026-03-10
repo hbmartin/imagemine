@@ -26,12 +26,13 @@ def generate_image(  # noqa: PLR0913
     temperature: float = 1.0,
     save_dir: str = "",
     model: str = DEFAULT_MODEL,
+    aspect_ratio: str = "4:3",
 ) -> ImageGen | None:
     g = GemImg(model=model, api_key=api_key)
     return g.generate(
         description,
         image,
-        aspect_ratio="4:3",
+        aspect_ratio=aspect_ratio,
         temperature=temperature,
         save_dir=save_dir,
     )
@@ -47,6 +48,7 @@ def _run_generation(  # noqa: PLR0913
     api_key: str,
     output_dir: pathlib.Path,
     model: str = DEFAULT_MODEL,
+    aspect_ratio: str = "4:3",
     log: Callable[[str], None],
     err: Callable[[str], None],
 ) -> str:
@@ -63,6 +65,7 @@ def _run_generation(  # noqa: PLR0913
             temperature=img_temp,
             save_dir=str(output_dir),
             model=model,
+            aspect_ratio=aspect_ratio,
         )
     except Exception as e:
         err(f"Image generation failed: {e}")
