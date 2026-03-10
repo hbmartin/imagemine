@@ -128,6 +128,8 @@ _CONFIG_FIELDS: list[tuple[str, str, bool]] = [
     ("DEFAULT_IMG_TEMP", "Default image temperature", False),
     ("CLAUDE_MODEL", "Claude model override", False),
     ("GEMINI_MODEL", "Gemini model override", False),
+    ("DESCRIPTION_PROMPT_SUFFIX", "Description prompt suffix", False),
+    ("GENERATION_PROMPT_SUFFIX", "Generation prompt suffix", False),
 ]
 
 

@@ -1,7 +1,7 @@
 import pytest
 from PIL import Image, PngImagePlugin
 
-from imagemine._image import write_png_metadata
+from imagemine._image import resize_image, write_png_metadata
 
 
 def test_write_png_metadata_preserves_existing_text_chunks(tmp_path) -> None:
@@ -30,3 +30,17 @@ def test_write_png_metadata_preserves_existing_dpi(tmp_path) -> None:
     with Image.open(path) as image:
         assert image.text["Description"] == "new description"
         assert image.info["dpi"] == pytest.approx((300, 300), abs=0.01)
+
+
+def test_resize_image_writes_resized_jpeg(tmp_path) -> None:
+    input_path = tmp_path / "large.png"
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    Image.new("RGB", (2000, 1200), color="blue").save(input_path)
+
+    image, resized_path = resize_image(str(input_path), output_dir, max_size=512)
+
+    assert resized_path == output_dir / "large_resized.jpg"
+    assert resized_path.exists()
+    assert image.size[0] <= 512
+    assert image.size[1] <= 512
