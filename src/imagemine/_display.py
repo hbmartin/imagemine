@@ -102,7 +102,9 @@ def _show_styles(conn: sqlite3.Connection, console: Console) -> None:
                 datetime.fromisoformat(created_at).replace(tzinfo=UTC).astimezone()
             )
             created_at_display = local_dt.strftime("%Y-%m-%d %H:%M")
-        except ValueError, TypeError:
+        except ValueError:
+            created_at_display = created_at or ""
+        except TypeError:
             created_at_display = created_at or ""
         table.add_row(name, description, str(used_count), created_at_display)
 

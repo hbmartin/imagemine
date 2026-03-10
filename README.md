@@ -117,6 +117,10 @@ imagemine photo.jpg --desc-temp 1.5 --img-temp 0.8
 # Use a custom style prompt instead of a random one
 imagemine photo.jpg --style "Ukiyo-e woodblock print, bold outlines, flat color"
 
+# Generate with a specific aspect ratio
+# Must be one of: https://ai.google.dev/gemini-api/docs/image-generation#aspect_ratios_and_image_size
+imagemine photo.jpg --aspect-ratio 16:9
+
 # List all styles in the database
 imagemine --list-styles
 

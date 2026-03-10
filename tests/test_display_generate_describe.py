@@ -100,7 +100,7 @@ def test_show_styles_formats_rows(monkeypatch) -> None:
     assert "Total: 2 styles" in rendered
 
 
-def test_print_summary_renders_style_and_timings(conn) -> None:
+def test_print_summary_renders_path_source_and_timings(conn) -> None:
     console = Console(record=True)
     run_id = 1
     conn.execute(
@@ -122,6 +122,35 @@ def test_print_summary_renders_style_and_timings(conn) -> None:
     rendered = console.export_text()
     assert "Done" in rendered
     assert "photo.jpg" in rendered
+    assert "1.2s" in rendered
+    assert "2.5s" in rendered
+    assert "4.2s" in rendered
+    assert "/tmp/output.png" in rendered
+
+
+def test_print_summary_renders_album_source(conn) -> None:
+    console = Console(record=True)
+    run_id = 1
+    conn.execute(
+        "INSERT INTO runs (id, desc_gen_ms, img_gen_ms) VALUES (?, ?, ?)",
+        (run_id, 1250, 2500),
+    )
+    conn.commit()
+
+    display._print_summary(
+        console,
+        conn,
+        run_id=run_id,
+        total_s=4.2,
+        input_path="/tmp/input/photo.jpg",
+        input_album="MyAlbum",
+        output_path="/tmp/output.png",
+    )
+
+    rendered = console.export_text()
+    assert "Done" in rendered
+    assert "MyAlbum" in rendered
+    assert "photo.jpg" not in rendered
     assert "1.2s" in rendered
     assert "2.5s" in rendered
     assert "4.2s" in rendered
