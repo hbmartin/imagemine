@@ -88,8 +88,18 @@ def main() -> None:
         "Enter Anthropic API key",
     )
     gemini_api_key = _resolve_api_key(conn, "GEMINI_API_KEY", "Enter Gemini API key")
-    desc_prompt_suffix = _resolve_option(conn, None, "DESCRIPTION_PROMPT_SUFFIX")
-    gen_prompt_suffix = _resolve_option(conn, None, "GENERATION_PROMPT_SUFFIX")
+    desc_prompt_suffix = _resolve_option(
+        conn,
+        None,
+        "DESCRIPTION_PROMPT_SUFFIX",
+        env_key="DESCRIPTION_PROMPT_SUFFIX",
+    )
+    gen_prompt_suffix = _resolve_option(
+        conn,
+        None,
+        "GENERATION_PROMPT_SUFFIX",
+        env_key="GENERATION_PROMPT_SUFFIX",
+    )
 
     run_pipeline(
         conn,

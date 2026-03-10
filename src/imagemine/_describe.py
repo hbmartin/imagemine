@@ -57,6 +57,7 @@ Control the Camera: Use photographic and cinematic language to control the compo
 def describe_image(  # noqa: PLR0913
     image: Image.Image,
     temperature: float = 2.0,
+    *,
     api_key: str | None = None,
     model: str = DEFAULT_MODEL,
     story: str | None = None,
@@ -119,12 +120,12 @@ def _get_description(  # noqa: PLR0913
     conn: sqlite3.Connection,
     run_id: int,
     image: Image.Image,
+    *,
     desc_temp: float,
     api_key: str,
     model: str = DEFAULT_MODEL,
     story: str | None = None,
     prompt_suffix: str | None = None,
-    *,
     log: Callable[[str], None],
     err: Callable[[str], None],
 ) -> str:

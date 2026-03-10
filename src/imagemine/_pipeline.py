@@ -140,11 +140,11 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 conn,
                 run_id,
                 image,
-                desc_temp,
-                anthropic_api_key,
-                claude_model,
-                story,
-                desc_prompt_suffix,
+                desc_temp=desc_temp,
+                api_key=anthropic_api_key,
+                model=claude_model,
+                story=story,
+                prompt_suffix=desc_prompt_suffix,
                 log=log_describe,
                 err=err,
             )
@@ -152,7 +152,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
         console.print(
             Panel(
                 Markdown(description),
-                title="[bold cyan]Description[/]",
+                title=None,
                 border_style="cyan",
                 padding=(1, 2),
             ),
@@ -184,7 +184,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 console.print(
                     Panel(
                         content,
-                        title="[bold]Selected Style[/]",
+                        title=None,
                         border_style="magenta",
                     ),
                 )
@@ -204,10 +204,10 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 run_id,
                 description,
                 image,
-                img_temp,
-                gemini_api_key,
-                output_dir,
-                gemini_model,
+                img_temp=img_temp,
+                api_key=gemini_api_key,
+                output_dir=output_dir,
+                model=gemini_model,
                 log=log_generate,
                 err=err,
             )
@@ -228,12 +228,11 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
         _print_summary(
             console,
             conn,
-            run_id,
-            total_s,
-            input_path,
-            style,
-            style_name,
-            output_path,
+            run_id=run_id,
+            total_s=total_s,
+            input_path=input_path,
+            input_album=input_album,
+            output_path=output_path,
         )
 
         # ── Session SVG (optional) ────────────────────────────────────────

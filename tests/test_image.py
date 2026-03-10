@@ -44,3 +44,9 @@ def test_resize_image_writes_resized_jpeg(tmp_path) -> None:
     assert resized_path.exists()
     assert image.size[0] <= 512
     assert image.size[1] <= 512
+
+    with Image.open(resized_path) as reopened:
+        assert reopened.format == "JPEG"
+        assert reopened.size == image.size
+        assert reopened.size[0] <= 512
+        assert reopened.size[1] <= 512

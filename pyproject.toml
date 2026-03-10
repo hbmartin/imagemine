@@ -1,6 +1,6 @@
 [project]
 name = "imagemine"
-version = "0.2.0"
+version = "0.3.0"
 description = "CLI tool to transform photos into AI-generated re-imagined artwork via Claude and Gemini"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -52,7 +52,7 @@ Repository = "https://github.com/harold-martin/imagemine"
 Issues = "https://github.com/harold-martin/imagemine/issues"
 
 [build-system]
-requires = ["uv_build>=0.10.9,<0.11.0"]
+requires = ["uv_build>=0.10.9"]
 build-backend = "uv_build"
 
 [project.scripts]
@@ -62,6 +62,7 @@ imagemine = "imagemine.cli:main"
 dev = [
     "black>=26.3.0",
     "codecov>=2.1.13",
+    "lizard>=1.21.2",
     "pyrefly>=0.55.0",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",

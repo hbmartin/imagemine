@@ -343,7 +343,7 @@ def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
     monkeypatch.setattr(
         pipeline,
         "_print_summary",
-        lambda *args: summary_calls.append(args),
+        lambda *args, **kwargs: summary_calls.append((args, kwargs)),
     )
     monkeypatch.setattr(
         pipeline,
@@ -423,7 +423,7 @@ def test_run_pipeline_with_custom_style_saves_session_svg(
     monkeypatch.setattr(
         pipeline,
         "_print_summary",
-        lambda *args: summary_calls.append(args),
+        lambda *args, **kwargs: summary_calls.append((args, kwargs)),
     )
 
     pipeline.run_pipeline(
@@ -505,7 +505,7 @@ def test_run_pipeline_with_fresh_style_updates_usage(monkeypatch, tmp_path) -> N
     monkeypatch.setattr(
         pipeline,
         "_print_summary",
-        lambda *args: summary_calls.append(args),
+        lambda *args, **kwargs: summary_calls.append((args, kwargs)),
     )
 
     pipeline.run_pipeline(

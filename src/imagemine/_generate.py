@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 def generate_image(  # noqa: PLR0913
     description: str,
     image: Image.Image,
+    *,
     api_key: str,
     temperature: float = 1.0,
     save_dir: str = "",
@@ -41,11 +42,11 @@ def _run_generation(  # noqa: PLR0913
     run_id: int,
     description: str,
     image: Image.Image,
+    *,
     img_temp: float,
     api_key: str,
     output_dir: pathlib.Path,
     model: str = DEFAULT_MODEL,
-    *,
     log: Callable[[str], None],
     err: Callable[[str], None],
 ) -> str:

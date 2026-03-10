@@ -113,11 +113,11 @@ def _show_styles(conn: sqlite3.Connection, console: Console) -> None:
 def _print_summary(  # noqa: PLR0913
     console: Console,
     conn: sqlite3.Connection,
+    *,
     run_id: int,
     total_s: float,
     input_path: str,
-    style: str | None,
-    style_name: str | None,
+    input_album: str | None,
     output_path: str,
 ) -> None:
     """Print the final summary panel."""
@@ -130,9 +130,7 @@ def _print_summary(  # noqa: PLR0913
     grid = Table.grid(padding=(0, 1))
     grid.add_column(style="dim", justify="right")
     grid.add_column()
-    grid.add_row("source", f"[cyan]{pathlib.Path(input_path).name}[/]")
-    if style:
-        grid.add_row("style", f"[magenta]{style_name or style}[/]")
+    grid.add_row("source", f"[cyan]{input_album or input_path}[/]")
     if desc_ms:
         grid.add_row("describe", f"[yellow]{desc_ms / 1000:.1f}s[/]")
     if img_ms:
