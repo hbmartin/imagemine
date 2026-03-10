@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import sys
 import time
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from rich.markdown import Markdown
@@ -23,7 +24,7 @@ from ._styles import increment_style_count, least_used_style, random_style
 
 if TYPE_CHECKING:
     import sqlite3
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
     from rich.console import Console
 
@@ -63,6 +64,27 @@ def _resolve_input(
     sys.exit(1)
 
 
+@contextmanager
+def _step_progress(
+    console: Console,
+    spinner: str,
+    color: str,
+) -> Generator[Callable[[str], None]]:
+    with Progress(
+        SpinnerColumn(spinner_name=spinner),
+        TextColumn("{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        task = progress.add_task(f"[bold {color}]Preparing...", total=None)
+
+        def log(msg: str) -> None:
+            progress.update(task, description=f"[bold {color}]{msg}")
+
+        yield log
+
+
 def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
     conn: sqlite3.Connection,
     console: Console,
@@ -83,6 +105,8 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
     style: str | None,
     fresh: bool,
     session_svg: bool,
+    desc_prompt_suffix: str | None = None,
+    gen_prompt_suffix: str | None = None,
 ) -> None:
     """Run the full resize → describe → style → generate pipeline."""
     console.rule("[bold magenta]imagemine[/]")
@@ -111,18 +135,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
         # ── Step 3: Describe ──────────────────────────────────────────────
         console.rule("[dim]Describe[/]", style="dim")
 
-        with Progress(
-            SpinnerColumn(spinner_name="moon"),
-            TextColumn("{task.description}"),
-            TimeElapsedColumn(),
-            console=console,
-            transient=True,
-        ) as progress:
-            task = progress.add_task("[bold cyan]Preparing...", total=None)
-
-            def log_describe(msg: str) -> None:
-                progress.update(task, description=f"[bold cyan]{msg}")
-
+        with _step_progress(console, "moon", "cyan") as log_describe:
             description = _get_description(
                 conn,
                 run_id,
@@ -131,6 +144,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 anthropic_api_key,
                 claude_model,
                 story,
+                desc_prompt_suffix,
                 log=log_describe,
                 err=err,
             )
@@ -178,21 +192,13 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 update_run(conn, run_id, style=style)
                 increment_style_count(conn, style_name)
 
+        if gen_prompt_suffix:
+            description = f"{description}\n\n{gen_prompt_suffix}"
+
         # ── Step 5: Generate ──────────────────────────────────────────────
         console.rule("[dim]Generate[/]", style="dim")
 
-        with Progress(
-            SpinnerColumn(spinner_name="smiley"),
-            TextColumn("{task.description}"),
-            TimeElapsedColumn(),
-            console=console,
-            transient=True,
-        ) as progress:
-            task = progress.add_task("[bold yellow]Preparing...", total=None)
-
-            def log_generate(msg: str) -> None:
-                progress.update(task, description=f"[bold yellow]{msg}")
-
+        with _step_progress(console, "smiley", "yellow") as log_generate:
             output_path = _run_generation(
                 conn,
                 run_id,

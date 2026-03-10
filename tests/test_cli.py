@@ -231,6 +231,70 @@ def test_resolve_input_album_returns_cleanup_dir(monkeypatch, tmp_path) -> None:
     assert cleanup_dir == export_dir
 
 
+def test_resolve_input_album_failure_calls_err_and_exits(monkeypatch) -> None:
+    pipeline = _import_pipeline(monkeypatch)
+    errors = []
+
+    monkeypatch.setattr(
+        pipeline,
+        "_random_photo_from_album",
+        lambda _album_name: (_ for _ in ()).throw(RuntimeError("album failed")),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        pipeline._resolve_input(
+            None,
+            "MyAlbum",
+            log=lambda _msg: None,
+            err=errors.append,
+        )
+
+    assert exc_info.value.code == 1
+    assert errors == ["Failed to fetch photo from album 'MyAlbum': album failed"]
+
+
+def test_run_pipeline_exits_when_resize_fails(monkeypatch, tmp_path) -> None:
+    pipeline = _import_pipeline(monkeypatch)
+    export_dir = tmp_path / "album-export"
+    export_dir.mkdir()
+    exported_file = export_dir / "input.jpg"
+    exported_file.write_bytes(b"input")
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    errors = []
+
+    monkeypatch.setattr(
+        pipeline,
+        "_resolve_input",
+        lambda *_args, **_kwargs: (str(exported_file), "photo-id-123", export_dir),
+    )
+    monkeypatch.setattr(pipeline, "insert_run", lambda *_args, **_kwargs: 7)
+    monkeypatch.setattr(
+        pipeline,
+        "update_run",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "resize_image",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("bad image")),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        pipeline.run_pipeline(
+            object(),
+            Console(quiet=True),
+            errors.append,
+            0.0,
+            output_dir,
+            **_pipeline_kwargs(input_album="Album"),
+        )
+
+    assert exc_info.value.code == 1
+    assert errors == ["Failed to open image: bad image"]
+    assert not export_dir.exists()
+
+
 def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
     monkeypatch,
     tmp_path,
@@ -304,6 +368,159 @@ def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
     assert not export_dir.exists()
     assert updates[0] == (7, {"input_album_photo_id": "photo-id-123"})
     assert updates[1] == (7, {"resized_file_path": str(resized_path)})
+
+
+def test_run_pipeline_with_custom_style_saves_session_svg(
+    monkeypatch, tmp_path
+) -> None:
+    pipeline = _import_pipeline(monkeypatch)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    input_path = tmp_path / "photo.jpg"
+    input_path.write_bytes(b"input")
+    resized_path = output_dir / "photo_resized.jpg"
+    resized_path.write_bytes(b"resized")
+    output_path = output_dir / "generated.png"
+    output_path.write_bytes(b"generated")
+    updates = []
+    added = []
+    summary_calls = []
+    console = Console(quiet=True, record=True)
+
+    monkeypatch.setattr(
+        pipeline,
+        "_resolve_input",
+        lambda *_args, **_kwargs: (str(input_path), None, None),
+    )
+    monkeypatch.setattr(pipeline, "insert_run", lambda *_args, **_kwargs: 7)
+    monkeypatch.setattr(
+        pipeline,
+        "update_run",
+        lambda _conn, run_id, **kwargs: updates.append((run_id, kwargs)),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "resize_image",
+        lambda *_args, **_kwargs: (object(), resized_path),
+    )
+
+    def fake_get_description(*_args, **kwargs):
+        kwargs["log"]("Claude step")
+        return "story text"
+
+    monkeypatch.setattr(pipeline, "_get_description", fake_get_description)
+
+    def fake_run_generation(*args, **kwargs):
+        kwargs["log"]("Gemini step")
+        return str(output_path)
+
+    monkeypatch.setattr(pipeline, "_run_generation", fake_run_generation)
+    monkeypatch.setattr(
+        pipeline,
+        "_add_to_photos_album",
+        lambda output, album, description: added.append((output, album, description)),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "_print_summary",
+        lambda *args: summary_calls.append(args),
+    )
+
+    pipeline.run_pipeline(
+        object(),
+        console,
+        lambda _msg: None,
+        0.0,
+        output_dir,
+        **_pipeline_kwargs(
+            destination_album="Dest",
+            style="Custom glow",
+            session_svg=True,
+        ),
+    )
+
+    assert (7, {"style": "Custom glow"}) in updates
+    assert added == [
+        (
+            str(output_path),
+            "Dest",
+            "story text\n\nStyle: Custom glow",
+        ),
+    ]
+    assert len(summary_calls) == 1
+    assert (output_dir / "imagemine_7.svg").exists()
+    assert not resized_path.exists()
+
+
+def test_run_pipeline_with_fresh_style_updates_usage(monkeypatch, tmp_path) -> None:
+    pipeline = _import_pipeline(monkeypatch)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    input_path = tmp_path / "photo.jpg"
+    input_path.write_bytes(b"input")
+    resized_path = output_dir / "photo_resized.jpg"
+    resized_path.write_bytes(b"resized")
+    output_path = output_dir / "generated.png"
+    output_path.write_bytes(b"generated")
+    updates = []
+    incremented = []
+    summary_calls = []
+
+    monkeypatch.setattr(
+        pipeline,
+        "_resolve_input",
+        lambda *_args, **_kwargs: (str(input_path), None, None),
+    )
+    monkeypatch.setattr(pipeline, "insert_run", lambda *_args, **_kwargs: 8)
+    monkeypatch.setattr(
+        pipeline,
+        "update_run",
+        lambda _conn, run_id, **kwargs: updates.append((run_id, kwargs)),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "resize_image",
+        lambda *_args, **_kwargs: (object(), resized_path),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "_get_description",
+        lambda *_args, **kwargs: (kwargs["log"]("Claude step"), "story text")[1],
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "least_used_style",
+        lambda *_args, **_kwargs: ("Watercolor", "soft edges"),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "increment_style_count",
+        lambda _conn, style_name: incremented.append(style_name),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "_run_generation",
+        lambda *_args, **kwargs: (kwargs["log"]("Gemini step"), str(output_path))[1],
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "_print_summary",
+        lambda *args: summary_calls.append(args),
+    )
+
+    pipeline.run_pipeline(
+        object(),
+        Console(quiet=True),
+        lambda _msg: None,
+        0.0,
+        output_dir,
+        **_pipeline_kwargs(fresh=True),
+    )
+
+    assert (8, {"style": "Watercolor: soft edges"}) in updates
+    assert incremented == ["Watercolor"]
+    assert len(summary_calls) == 1
+    assert not resized_path.exists()
 
 
 def test_run_pipeline_cleans_up_export_dir_if_insert_run_fails(

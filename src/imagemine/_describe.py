@@ -54,12 +54,13 @@ Control the Camera: Use photographic and cinematic language to control the compo
 """
 
 
-def describe_image(
+def describe_image(  # noqa: PLR0913
     image: Image.Image,
     temperature: float = 2.0,
     api_key: str | None = None,
     model: str = DEFAULT_MODEL,
     story: str | None = None,
+    prompt_suffix: str | None = None,
 ) -> str:
     client = anthropic.Anthropic(api_key=api_key)
 
@@ -75,7 +76,9 @@ def describe_image(
 
     prompt = PROMPT
     if story:
-        prompt = f"{PROMPT}\n\nIncorporate this information into your scene and story:\n{story}"
+        prompt = f"{prompt}\n\nIncorporate this information into your scene and story:\n{story}"
+    if prompt_suffix:
+        prompt = f"{prompt}\n\n{prompt_suffix}"
 
     try:
         response = client.beta.messages.create(
@@ -120,6 +123,7 @@ def _get_description(  # noqa: PLR0913
     api_key: str,
     model: str = DEFAULT_MODEL,
     story: str | None = None,
+    prompt_suffix: str | None = None,
     *,
     log: Callable[[str], None],
     err: Callable[[str], None],
@@ -136,6 +140,7 @@ def _get_description(  # noqa: PLR0913
             api_key=api_key,
             model=model,
             story=story,
+            prompt_suffix=prompt_suffix,
         )
     except Exception as e:
         err(f"Description generation failed: {e}")
