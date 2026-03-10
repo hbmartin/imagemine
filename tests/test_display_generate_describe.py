@@ -112,18 +112,16 @@ def test_print_summary_renders_style_and_timings(conn) -> None:
     display._print_summary(
         console,
         conn,
-        run_id,
-        4.2,
-        "/tmp/input/photo.jpg",
-        "Watercolor: soft edges",
-        "Watercolor",
-        "/tmp/output.png",
+        run_id=run_id,
+        total_s=4.2,
+        input_path="/tmp/input/photo.jpg",
+        input_album=None,
+        output_path="/tmp/output.png",
     )
 
     rendered = console.export_text()
     assert "Done" in rendered
     assert "photo.jpg" in rendered
-    assert "Watercolor" in rendered
     assert "1.2s" in rendered
     assert "2.5s" in rendered
     assert "4.2s" in rendered
@@ -161,7 +159,7 @@ def test_generate_image_uses_gemimg(monkeypatch) -> None:
     result = generate.generate_image(
         "prompt",
         image,
-        "api-key",
+        api_key="api-key",
         temperature=1.4,
         save_dir="/tmp/out",
         model="gemini-custom",
@@ -214,10 +212,10 @@ def test_run_generation_updates_db_and_metadata(monkeypatch, tmp_path) -> None:
         5,
         "prompt text",
         object(),
-        0.8,
-        "api-key",
-        output_dir,
-        "gemini-custom",
+        img_temp=0.8,
+        api_key="api-key",
+        output_dir=output_dir,
+        model="gemini-custom",
         log=logs.append,
         err=lambda _msg: None,
     )
@@ -259,9 +257,9 @@ def test_run_generation_exits_on_generation_exception(monkeypatch, tmp_path) -> 
             5,
             "prompt",
             object(),
-            0.8,
-            "api-key",
-            output_dir,
+            img_temp=0.8,
+            api_key="api-key",
+            output_dir=output_dir,
             log=lambda _msg: None,
             err=errors.append,
         )
@@ -284,9 +282,9 @@ def test_run_generation_exits_when_result_is_none(monkeypatch, tmp_path) -> None
             5,
             "prompt",
             object(),
-            0.8,
-            "api-key",
-            output_dir,
+            img_temp=0.8,
+            api_key="api-key",
+            output_dir=output_dir,
             log=lambda _msg: None,
             err=errors.append,
         )
@@ -318,9 +316,9 @@ def test_run_generation_exits_on_unexpected_result(monkeypatch, tmp_path) -> Non
             5,
             "prompt",
             object(),
-            0.8,
-            "api-key",
-            output_dir,
+            img_temp=0.8,
+            api_key="api-key",
+            output_dir=output_dir,
             log=lambda _msg: None,
             err=errors.append,
         )
@@ -353,9 +351,9 @@ def test_run_generation_exits_when_output_is_missing(monkeypatch, tmp_path) -> N
             5,
             "prompt",
             object(),
-            0.8,
-            "api-key",
-            output_dir,
+            img_temp=0.8,
+            api_key="api-key",
+            output_dir=output_dir,
             log=lambda _msg: None,
             err=errors.append,
         )
@@ -419,6 +417,48 @@ def test_describe_image_uploads_and_returns_text(monkeypatch) -> None:
     assert create_calls[0]["temperature"] == 1.7
     assert "Extra detail" in create_calls[0]["messages"][0]["content"][1]["text"]
     assert deleted == [("file-123", ("files-api-2025-04-14",))]
+
+
+def test_describe_image_appends_prompt_suffix(monkeypatch) -> None:
+    create_calls = []
+
+    class FakeBetaTextBlock:
+        def __init__(self, text: str) -> None:
+            self.text = text
+
+    class FakeFiles:
+        def upload(self, *, file, betas):
+            return SimpleNamespace(id="file-123")
+
+        def delete(self, file_id: str, *, betas) -> None:
+            return None
+
+    class FakeMessages:
+        def create(self, **kwargs):
+            create_calls.append(kwargs)
+            return SimpleNamespace(content=[FakeBetaTextBlock("story text")])
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.beta = SimpleNamespace(
+                files=FakeFiles(),
+                messages=FakeMessages(),
+            )
+
+    monkeypatch.setattr(describe, "BetaTextBlock", FakeBetaTextBlock)
+    monkeypatch.setattr(
+        describe.anthropic,
+        "Anthropic",
+        lambda api_key=None: FakeClient(),
+    )
+
+    describe.describe_image(
+        Image.new("RGB", (10, 10), color="red"),
+        prompt_suffix="Use vivid colors",
+    )
+
+    prompt_text = create_calls[0]["messages"][0]["content"][1]["text"]
+    assert "Use vivid colors" in prompt_text
 
 
 def test_describe_image_raises_when_no_text_block(monkeypatch) -> None:
@@ -488,10 +528,10 @@ def test_get_description_updates_db(monkeypatch) -> None:
         object(),
         9,
         Image.new("RGB", (5, 5), color="green"),
-        1.2,
-        "api-key",
-        "claude-custom",
-        "story prompt",
+        desc_temp=1.2,
+        api_key="api-key",
+        model="claude-custom",
+        story="story prompt",
         log=logs.append,
         err=lambda _msg: None,
     )
@@ -511,6 +551,41 @@ def test_get_description_updates_db(monkeypatch) -> None:
     ]
 
 
+def test_get_description_passes_prompt_suffix(monkeypatch) -> None:
+    describe_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(describe, "avg_duration_ms", lambda _conn, _column: None)
+    monkeypatch.setattr(
+        describe,
+        "describe_image",
+        lambda *_args, **kwargs: describe_calls.append(kwargs) or "story text",
+    )
+    monkeypatch.setattr(describe, "update_run", lambda _conn, run_id, **kwargs: None)
+
+    describe._get_description(
+        object(),
+        9,
+        Image.new("RGB", (5, 5), color="green"),
+        desc_temp=1.2,
+        api_key="api-key",
+        model="claude-custom",
+        story="story prompt",
+        prompt_suffix="custom suffix",
+        log=lambda _msg: None,
+        err=lambda _msg: None,
+    )
+
+    assert describe_calls == [
+        {
+            "temperature": 1.2,
+            "api_key": "api-key",
+            "model": "claude-custom",
+            "story": "story prompt",
+            "prompt_suffix": "custom suffix",
+        },
+    ]
+
+
 def test_get_description_exits_on_failure(monkeypatch) -> None:
     errors = []
 
@@ -526,8 +601,8 @@ def test_get_description_exits_on_failure(monkeypatch) -> None:
             object(),
             9,
             Image.new("RGB", (5, 5), color="yellow"),
-            1.2,
-            "api-key",
+            desc_temp=1.2,
+            api_key="api-key",
             log=lambda _msg: None,
             err=errors.append,
         )

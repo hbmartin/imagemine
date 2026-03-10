@@ -102,6 +102,12 @@ def _printed_text(console: _FakeConsole) -> list[str]:
     return [str(args[0]) for args, _ in console.print_calls if args]
 
 
+def _wizard_answers(*explicit_values: str) -> iter[str]:
+    padded_answers = list(explicit_values)
+    padded_answers.extend([""] * (len(cfg._CONFIG_FIELDS) - len(padded_answers)))
+    return iter(padded_answers)
+
+
 @pytest.mark.parametrize(
     ("flag_name", "handler_name"),
     [
@@ -335,20 +341,7 @@ def test_run_config_wizard_saves_secret_and_plain_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_console = _FakeConsole()
-    prompt_answers = iter(
-        [
-            "anthropic-secret",
-            "",
-            "Inbox",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-        ],
-    )
+    prompt_answers = _wizard_answers("anthropic-secret", "", "Inbox")
     set_config(conn, "ANTHROPIC_API_KEY", "existing-secret")
     monkeypatch.setattr(cfg, "Console", lambda: fake_console)
     monkeypatch.setattr(
@@ -372,7 +365,7 @@ def test_run_config_wizard_skips_blank_answers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_console = _FakeConsole()
-    prompt_answers = iter(["", "", "", "", "", "", "", "", "", ""])
+    prompt_answers = _wizard_answers()
     set_config(conn, "INPUT_ALBUM", "ExistingAlbum")
     monkeypatch.setattr(cfg, "Console", lambda: fake_console)
     monkeypatch.setattr(
@@ -388,7 +381,8 @@ def test_run_config_wizard_skips_blank_answers(
 
 
 def test_cli_main_stops_after_subcommand(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
 ) -> None:
     cli = _import_cli(monkeypatch)
     fake_console = _FakeConsole()
@@ -404,7 +398,9 @@ def test_cli_main_stops_after_subcommand(
     monkeypatch.setattr(cli, "Console", lambda **_kwargs: fake_console)
     monkeypatch.setattr(cli, "_parse_args", lambda: args)
     monkeypatch.setattr(
-        cli, "init_db", lambda db_path: init_db_calls.append(db_path) or "db"
+        cli,
+        "init_db",
+        lambda db_path: init_db_calls.append(db_path) or "db",
     )
     monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: True)
     monkeypatch.setattr(
@@ -495,8 +491,8 @@ def test_cli_main_runs_pipeline_with_resolved_values(
     assert option_calls == [
         ("INPUT_ALBUM", "cli-album", "INPUT_ALBUM"),
         ("DESTINATION_ALBUM", "cli-destination", "DESTINATION_ALBUM"),
-        ("DESCRIPTION_PROMPT_SUFFIX", None, None),
-        ("GENERATION_PROMPT_SUFFIX", None, None),
+        ("DESCRIPTION_PROMPT_SUFFIX", None, "DESCRIPTION_PROMPT_SUFFIX"),
+        ("GENERATION_PROMPT_SUFFIX", None, "GENERATION_PROMPT_SUFFIX"),
     ]
     pipeline_args, pipeline_kwargs = pipeline_calls[0]
     assert pipeline_args[:4] == (
