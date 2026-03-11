@@ -167,6 +167,10 @@ STYLES = [
         "Vintage Ad",
         "retro 1950s illustrations, cheerful spot colors, kitschy slogans, magazine gloss",
     ),
+    (
+        "Civ 6 Leader",
+        "exaggerated proportions, rich colors, expressive poses, chiaroscuro lighting, classical realism, 3D-rendered base with oil paint-over finish",
+    ),
 ]
 
 

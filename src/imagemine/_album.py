@@ -2,6 +2,7 @@
 
 import pathlib
 import shutil
+import sqlite3
 import subprocess
 import tempfile
 
@@ -49,13 +50,50 @@ end run"""
         raise RuntimeError(msg)
 
 
+_PHOTOS_DB = (
+    pathlib.Path.home()
+    / "Pictures"
+    / "Photos Library.photoslibrary"
+    / "database"
+    / "Photos.sqlite"
+)
+
+_PEOPLE_QUERY = """\
+SELECT ZPERSON.ZFULLNAME
+FROM ZPERSON
+JOIN ZDETECTEDFACE ON ZDETECTEDFACE.ZPERSONFORFACE = ZPERSON.Z_PK
+JOIN ZASSET ON ZASSET.Z_PK = ZDETECTEDFACE.ZASSETFORFACE
+WHERE ZASSET.ZUUID = ?
+  AND ZPERSON.ZFULLNAME IS NOT NULL
+"""
+
+
+def _people_for_photo(photo_uuid: str) -> list[str]:
+    """Look up recognised-person names for *photo_uuid* from the Photos DB."""
+    uuid = photo_uuid.split("/", maxsplit=1)[0]
+    if not _PHOTOS_DB.exists():
+        return []
+    try:
+        conn = sqlite3.connect(
+            f"file:{_PHOTOS_DB}?mode=ro",
+            uri=True,
+        )
+        try:
+            rows = conn.execute(_PEOPLE_QUERY, (uuid,)).fetchall()
+        finally:
+            conn.close()
+    except sqlite3.DatabaseError, OSError:
+        return []
+    return [row[0] for row in rows]
+
+
 def _random_photo_from_album(
     album_name: str,
     max_attempts: int = 10,
-) -> tuple[str, str, pathlib.Path]:
+) -> tuple[str, str, pathlib.Path, list[str]]:
     """Export a random still image from a macOS Photos album.
 
-    Returns (exported_file_path, photos_item_id, export_dir).
+    Returns (exported_file_path, photos_item_id, export_dir, people_names).
     """
     base_script = """on run argv
     set albumName to item 1 of argv
@@ -97,7 +135,8 @@ end run"""
             shutil.rmtree(tmp_dir, ignore_errors=True)
             continue
         photo_id = result.stdout.strip()
-        return str(exported), photo_id, tmp_dir
+        people_names = _people_for_photo(photo_id)
+        return str(exported), photo_id, tmp_dir, people_names
 
     msg = (
         f"Could not find a non-video photo in album {album_name!r}"
