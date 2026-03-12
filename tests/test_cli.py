@@ -132,6 +132,7 @@ def _pipeline_kwargs(**overrides) -> dict:
         "style": None,
         "fresh": False,
         "session_svg": False,
+        "selected_style_names": (),
         "progress": _FakeProgress(),
     }
     defaults.update(overrides)
@@ -196,7 +197,11 @@ def test_resolve_input_no_path_no_album_exits(monkeypatch) -> None:
 
     with pytest.raises(SystemExit) as exc_info:
         pipeline._resolve_input(
-            None, None, photos=None, log=lambda _: None, err=errors.append,
+            None,
+            None,
+            photos=None,
+            log=lambda _: None,
+            err=errors.append,
         )
     assert exc_info.value.code == 1
     assert errors == ["Provide an image path or configure INPUT_ALBUM"]
@@ -376,6 +381,7 @@ def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
         "_print_summary",
         lambda *args, **kwargs: summary_calls.append((args, kwargs)),
     )
+
     class FailingPhotos:
         def random_photo_from_album(self, _name):
             return None
@@ -407,7 +413,8 @@ def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
 
 
 def test_run_pipeline_with_custom_style_saves_session_svg(
-    monkeypatch, tmp_path,
+    monkeypatch,
+    tmp_path,
 ) -> None:
     pipeline = _import_pipeline(monkeypatch)
     output_dir = tmp_path / "out"
@@ -489,6 +496,91 @@ def test_run_pipeline_with_custom_style_saves_session_svg(
     ]
     assert len(summary_calls) == 1
     assert (output_dir / "imagemine_7.svg").exists()
+    assert not resized_path.exists()
+
+
+def test_run_pipeline_with_selected_styles_updates_all_usage_counts(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    pipeline = _import_pipeline(monkeypatch)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    input_path = tmp_path / "photo.jpg"
+    input_path.write_bytes(b"input")
+    resized_path = output_dir / "photo_resized.jpg"
+    resized_path.write_bytes(b"resized")
+    output_path = output_dir / "generated.png"
+    output_path.write_bytes(b"generated")
+    updates = []
+    incremented = []
+    summary_calls = []
+
+    monkeypatch.setattr(
+        pipeline,
+        "_resolve_input",
+        lambda *_args, **_kwargs: (str(input_path), None, None, []),
+    )
+    monkeypatch.setattr(pipeline, "insert_run", lambda *_args, **_kwargs: 9)
+    monkeypatch.setattr(
+        pipeline,
+        "update_run",
+        lambda _conn, run_id, **kwargs: updates.append((run_id, kwargs)),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "resize_image",
+        lambda *_args, **_kwargs: (object(), resized_path),
+    )
+    monkeypatch.setattr(pipeline, "_get_description", lambda *_args, **_kwargs: "desc")
+    monkeypatch.setattr(
+        pipeline,
+        "random_style",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("random_style should not be used"),
+        ),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "least_used_style",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("least_used_style should not be used"),
+        ),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "increment_style_count",
+        lambda _conn, style_name: incremented.append(style_name),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "_run_generation",
+        lambda *_args, **_kwargs: str(output_path),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "_print_summary",
+        lambda *args, **kwargs: summary_calls.append((args, kwargs)),
+    )
+
+    pipeline.run_pipeline(
+        object(),
+        Console(quiet=True),
+        lambda _msg: None,
+        0.0,
+        output_dir,
+        **_pipeline_kwargs(
+            style="Watercolor: soft edges; Neon Noir: rain-slicked streets",
+            selected_style_names=("Watercolor", "Neon Noir"),
+        ),
+    )
+
+    assert (
+        9,
+        {"style": "Watercolor: soft edges; Neon Noir: rain-slicked streets"},
+    ) in updates
+    assert incremented == ["Watercolor", "Neon Noir"]
+    assert len(summary_calls) == 1
     assert not resized_path.exists()
 
 

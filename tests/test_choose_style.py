@@ -1,7 +1,5 @@
 """Tests for the --choose-style interactive style picker."""
 
-from types import SimpleNamespace
-
 import pytest
 
 import imagemine._styles as styles
@@ -19,33 +17,50 @@ def _printed_text(console: _FakeConsole) -> list[str]:
     return [str(args[0]) for args, _ in console.print_calls if args]
 
 
+def _selected_styles(
+    conn,
+    indices: tuple[int, ...],
+) -> list[tuple[str, str]]:
+    all_styles = styles.get_all_styles(conn)
+    return [(all_styles[idx - 1][0], all_styles[idx - 1][1]) for idx in indices]
+
+
 def test_choose_single_style(conn, monkeypatch) -> None:
     fake_console = _FakeConsole()
     prompt_answers = iter(["1"])
     monkeypatch.setattr(styles, "Console", lambda: fake_console)
     monkeypatch.setattr(
-        styles.Prompt, "ask", lambda *_args, **_kwargs: next(prompt_answers),
+        styles.Prompt,
+        "ask",
+        lambda *_args, **_kwargs: next(prompt_answers),
     )
 
-    name, desc = styles._run_choose_style(conn)
+    result = styles._run_choose_style(conn)
+    expected_name, expected_desc = _selected_styles(conn, (1,))[0]
 
-    assert isinstance(name, str)
-    assert isinstance(desc, str)
+    assert result.style_names == (expected_name,)
+    assert result.style_prompt == f"{expected_name}: {expected_desc}"
     assert any("Selected" in text for text in _printed_text(fake_console))
 
 
-def test_choose_multiple_styles_picks_one(conn, monkeypatch) -> None:
+def test_choose_multiple_styles_blends(conn, monkeypatch) -> None:
     fake_console = _FakeConsole()
     prompt_answers = iter(["1,2,3"])
     monkeypatch.setattr(styles, "Console", lambda: fake_console)
     monkeypatch.setattr(
-        styles.Prompt, "ask", lambda *_args, **_kwargs: next(prompt_answers),
+        styles.Prompt,
+        "ask",
+        lambda *_args, **_kwargs: next(prompt_answers),
     )
 
-    name, desc = styles._run_choose_style(conn)
+    result = styles._run_choose_style(conn)
+    expected_candidates = _selected_styles(conn, (1, 2, 3))
 
-    assert isinstance(name, str)
-    assert isinstance(desc, str)
+    assert result.style_names == tuple(name for name, _ in expected_candidates)
+    assert result.style_prompt == "; ".join(
+        f"{name}: {desc}" for name, desc in expected_candidates
+    )
+    assert any("Blending" in text for text in _printed_text(fake_console))
 
 
 def test_choose_style_empty_db_exits(conn, monkeypatch) -> None:
@@ -84,6 +99,24 @@ def test_choose_style_invalid_input_exits(conn, monkeypatch) -> None:
     assert any("Invalid selection" in text for text in _printed_text(fake_console))
 
 
+def test_choose_style_separator_only_input_warns_and_exits(
+    conn,
+    monkeypatch,
+) -> None:
+    fake_console = _FakeConsole()
+    monkeypatch.setattr(styles, "Console", lambda: fake_console)
+    monkeypatch.setattr(styles.Prompt, "ask", lambda *_args, **_kwargs: " , , ")
+
+    with pytest.raises(SystemExit) as exc_info:
+        styles._run_choose_style(conn)
+
+    assert exc_info.value.code == 1
+    assert any(
+        "Enter at least one style number." in text
+        for text in _printed_text(fake_console)
+    )
+
+
 def test_choose_style_out_of_range_exits(conn, monkeypatch) -> None:
     fake_console = _FakeConsole()
     monkeypatch.setattr(styles, "Console", lambda: fake_console)
@@ -102,7 +135,26 @@ def test_choose_style_deduplicates_indices(conn, monkeypatch) -> None:
     monkeypatch.setattr(styles, "Console", lambda: fake_console)
     monkeypatch.setattr(styles.Prompt, "ask", lambda *_args, **_kwargs: "1,1")
 
-    name, desc = styles._run_choose_style(conn)
+    result = styles._run_choose_style(conn)
+    expected_name, expected_desc = _selected_styles(conn, (1,))[0]
 
-    assert isinstance(name, str)
-    assert isinstance(desc, str)
+    assert result.style_names == (expected_name,)
+    assert result.style_prompt == f"{expected_name}: {expected_desc}"
+
+
+def test_run_remove_style_separator_only_input_warns_and_exits(
+    conn,
+    monkeypatch,
+) -> None:
+    fake_console = _FakeConsole()
+    monkeypatch.setattr(styles, "Console", lambda: fake_console)
+    monkeypatch.setattr(styles.Prompt, "ask", lambda *_args, **_kwargs: ",,,")
+
+    with pytest.raises(SystemExit) as exc_info:
+        styles._run_remove_style(conn)
+
+    assert exc_info.value.code == 1
+    assert any(
+        "Enter at least one style number." in text
+        for text in _printed_text(fake_console)
+    )

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import random
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -175,6 +174,13 @@ STYLES = [
 ]
 
 
+class ChosenStyle(NamedTuple):
+    """A user-selected style prompt and the library styles it came from."""
+
+    style_prompt: str
+    style_names: tuple[str, ...]
+
+
 def random_style(conn: sqlite3.Connection) -> tuple[str, str] | tuple[None, None]:
     row = conn.execute(
         "SELECT name, description FROM styles ORDER BY RANDOM() LIMIT 1",
@@ -274,6 +280,9 @@ def _parse_style_indices(
     except ValueError:
         console.print("[bold red]Error:[/] Invalid selection — enter numbers only.")
         sys.exit(1)
+    if not indices:
+        console.print("[yellow]Warning:[/] Enter at least one style number.")
+        sys.exit(1)
 
     unique: list[int] = []
     seen: set[int] = set()
@@ -332,10 +341,10 @@ def _run_remove_style(conn: sqlite3.Connection) -> None:
     console.print(f"\n  [green]✓[/] Removed {len(to_remove)} style(s).")
 
 
-def _run_choose_style(conn: sqlite3.Connection) -> tuple[str, str]:
-    """Interactively pick one or more styles; return (name, description).
+def _run_choose_style(conn: sqlite3.Connection) -> ChosenStyle:
+    """Interactively pick one or more styles.
 
-    When multiple styles are selected, one is chosen at random.
+    When multiple styles are selected their prompts are merged.
     """
     console = Console()
     console.print(Rule("[bold magenta]Choose style[/]"))
@@ -348,7 +357,7 @@ def _run_choose_style(conn: sqlite3.Connection) -> tuple[str, str]:
     _print_numbered_styles(console, styles)
 
     raw = Prompt.ask(
-        "\n[bold]Enter number(s) to use[/] [dim](e.g. 1 or 1,3,5)[/]",
+        "\n[bold]Enter number(s) to use[/] [dim](e.g. 1 or 1,3,5 to blend)[/]",
         default="",
     )
     if not raw.strip():
@@ -357,7 +366,16 @@ def _run_choose_style(conn: sqlite3.Connection) -> tuple[str, str]:
 
     unique_indices = _parse_style_indices(raw, len(styles), console)
     candidates = [(styles[idx - 1][0], styles[idx - 1][1]) for idx in unique_indices]
+    style_names = tuple(name for name, _ in candidates)
+    style_prompt = "; ".join(f"{name}: {desc}" for name, desc in candidates)
 
-    chosen_name, chosen_desc = random.choice(candidates)  # noqa: S311
-    console.print(f"\n  [green]✓[/] Selected [magenta]{chosen_name}[/]")
-    return chosen_name, chosen_desc
+    if len(candidates) == 1:
+        chosen_name = candidates[0][0]
+        console.print(f"\n  [green]✓[/] Selected [magenta]{chosen_name}[/]")
+        return ChosenStyle(style_prompt=style_prompt, style_names=style_names)
+
+    merged_name = " + ".join(style_names)
+    console.print(
+        f"\n  [green]✓[/] Blending [magenta]{merged_name}[/]",
+    )
+    return ChosenStyle(style_prompt=style_prompt, style_names=style_names)

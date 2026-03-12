@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Iterator
 
     from rich.console import Console
 
@@ -31,7 +31,7 @@ class RichProgressReporter:
         self._console = console
 
     @contextmanager
-    def step(self, spinner: str, color: str) -> Generator[Callable[[str], None]]:
+    def step(self, spinner: str, color: str) -> Iterator[Callable[[str], None]]:
         with Progress(
             SpinnerColumn(spinner_name=spinner),
             TextColumn("{task.description}"),
@@ -55,5 +55,5 @@ class NullProgressReporter:
         self,
         spinner: str,
         color: str,
-    ) -> Generator[Callable[[str], None]]:
+    ) -> Iterator[Callable[[str], None]]:
         yield lambda _msg: None
