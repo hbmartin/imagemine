@@ -30,7 +30,7 @@ def test_requires_uvx_on_path(launchd_conn, monkeypatch, tmp_path) -> None:
 
 
 def test_start_interval_is_minutes_times_60(
-    launchd_conn, monkeypatch, tmp_path
+    launchd_conn, monkeypatch, tmp_path,
 ) -> None:
     plist_path = _patch_plist_path(monkeypatch, tmp_path)
     _silent_console(monkeypatch)

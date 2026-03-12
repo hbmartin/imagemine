@@ -159,7 +159,7 @@ def test_resolve_input_uses_image_path(monkeypatch, tmp_path) -> None:
     img = tmp_path / "photo.jpg"
     img.write_bytes(b"fake")
 
-    path, photo_id, export_dir = pipeline._resolve_input(
+    path, photo_id, export_dir, people = pipeline._resolve_input(
         str(img),
         None,
         log=lambda _: None,
@@ -169,6 +169,7 @@ def test_resolve_input_uses_image_path(monkeypatch, tmp_path) -> None:
     assert path == str(img.resolve())
     assert photo_id is None
     assert export_dir is None
+    assert people == []
 
 
 def test_resolve_input_no_path_no_album_exits(monkeypatch) -> None:
@@ -192,11 +193,11 @@ def test_resolve_input_image_path_takes_priority_over_album(
 
     def fake_random_photo(album_name):
         album_calls.append(album_name)
-        return "/from/album.jpg", "photo-id-123", tmp_path / "album-export"
+        return "/from/album.jpg", "photo-id-123", tmp_path / "album-export", []
 
     monkeypatch.setattr(pipeline, "_random_photo_from_album", fake_random_photo)
 
-    path, photo_id, export_dir = pipeline._resolve_input(
+    path, photo_id, export_dir, people = pipeline._resolve_input(
         str(img),
         "MyAlbum",
         log=lambda _: None,
@@ -206,6 +207,7 @@ def test_resolve_input_image_path_takes_priority_over_album(
     assert path == str(img.resolve())
     assert photo_id is None
     assert export_dir is None
+    assert people == []
     assert album_calls == []
 
 
@@ -217,10 +219,10 @@ def test_resolve_input_album_returns_cleanup_dir(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
         pipeline,
         "_random_photo_from_album",
-        lambda _album_name: ("/from/album.jpg", "photo-id-123", export_dir),
+        lambda _album_name: ("/from/album.jpg", "photo-id-123", export_dir, ["Alice"]),
     )
 
-    path, photo_id, cleanup_dir = pipeline._resolve_input(
+    path, photo_id, cleanup_dir, people = pipeline._resolve_input(
         None,
         "MyAlbum",
         log=lambda _: None,
@@ -230,6 +232,7 @@ def test_resolve_input_album_returns_cleanup_dir(monkeypatch, tmp_path) -> None:
     assert path == "/from/album.jpg"
     assert photo_id == "photo-id-123"
     assert cleanup_dir == export_dir
+    assert people == ["Alice"]
 
 
 def test_resolve_input_album_failure_calls_err_and_exits(monkeypatch) -> None:
@@ -239,7 +242,7 @@ def test_resolve_input_album_failure_calls_err_and_exits(monkeypatch) -> None:
     monkeypatch.setattr(
         pipeline,
         "_random_photo_from_album",
-        lambda _album_name: (_ for _ in ()).throw(RuntimeError("album failed")),
+        lambda _name: (_ for _ in ()).throw(RuntimeError("album failed")),
     )
 
     with pytest.raises(SystemExit) as exc_info:
@@ -267,7 +270,7 @@ def test_run_pipeline_exits_when_resize_fails(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
         pipeline,
         "_resolve_input",
-        lambda *_args, **_kwargs: (str(exported_file), "photo-id-123", export_dir),
+        lambda *_args, **_kwargs: (str(exported_file), "photo-id-123", export_dir, []),
     )
     monkeypatch.setattr(pipeline, "insert_run", lambda *_args, **_kwargs: 7)
     monkeypatch.setattr(
@@ -317,7 +320,7 @@ def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
     monkeypatch.setattr(
         pipeline,
         "_resolve_input",
-        lambda *_args, **_kwargs: (str(exported_file), "photo-id-123", export_dir),
+        lambda *_args, **_kwargs: (str(exported_file), "photo-id-123", export_dir, []),
     )
     monkeypatch.setattr(pipeline, "insert_run", lambda *_args, **_kwargs: 7)
     monkeypatch.setattr(
@@ -372,7 +375,7 @@ def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
 
 
 def test_run_pipeline_with_custom_style_saves_session_svg(
-    monkeypatch, tmp_path
+    monkeypatch, tmp_path,
 ) -> None:
     pipeline = _import_pipeline(monkeypatch)
     output_dir = tmp_path / "out"
@@ -391,7 +394,7 @@ def test_run_pipeline_with_custom_style_saves_session_svg(
     monkeypatch.setattr(
         pipeline,
         "_resolve_input",
-        lambda *_args, **_kwargs: (str(input_path), None, None),
+        lambda *_args, **_kwargs: (str(input_path), None, None, []),
     )
     monkeypatch.setattr(pipeline, "insert_run", lambda *_args, **_kwargs: 7)
     monkeypatch.setattr(
@@ -470,7 +473,7 @@ def test_run_pipeline_with_fresh_style_updates_usage(monkeypatch, tmp_path) -> N
     monkeypatch.setattr(
         pipeline,
         "_resolve_input",
-        lambda *_args, **_kwargs: (str(input_path), None, None),
+        lambda *_args, **_kwargs: (str(input_path), None, None, []),
     )
     monkeypatch.setattr(pipeline, "insert_run", lambda *_args, **_kwargs: 8)
     monkeypatch.setattr(
@@ -539,7 +542,7 @@ def test_run_pipeline_cleans_up_export_dir_if_insert_run_fails(
     monkeypatch.setattr(
         pipeline,
         "_resolve_input",
-        lambda *_args, **_kwargs: (str(exported_file), "photo-id-123", export_dir),
+        lambda *_args, **_kwargs: (str(exported_file), "photo-id-123", export_dir, []),
     )
     monkeypatch.setattr(
         pipeline,

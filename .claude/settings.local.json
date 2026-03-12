@@ -6,7 +6,8 @@
       "Bash(uv build:*)",
       "Bash(grep:*)",
       "Bash(wc:*)",
-      "Bash(uvx lizard:*)"
+      "Bash(uvx lizard:*)",
+      "WebSearch"
     ]
   }
 }

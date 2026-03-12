@@ -47,19 +47,21 @@ def _resolve_input(
     *,
     log: Callable[[str], None],
     err: Callable[[str], None],
-) -> tuple[str, str | None, pathlib.Path | None]:
-    """Return (resolved_input_path, album_photo_id_or_none, temp_export_dir)."""
+) -> tuple[str, str | None, pathlib.Path | None, list[str]]:
+    """Return (resolved_input_path, photo_id, temp_dir, people_names)."""
     if image_path:
-        return _validate_input(image_path, err), None, None
+        return _validate_input(image_path, err), None, None, []
     if input_album:
         log(f"Picking random photo from album: {input_album}")
         try:
-            path, photo_id, export_dir = _random_photo_from_album(input_album)
+            path, photo_id, export_dir, people_names = _random_photo_from_album(
+                input_album,
+            )
         except Exception as e:
             err(f"Failed to fetch photo from album {input_album!r}: {e}")
             sys.exit(1)
         log(f"Selected: {path} (id: {photo_id})")
-        return path, photo_id, export_dir
+        return path, photo_id, export_dir, people_names
     err("Provide an image path or configure INPUT_ALBUM")
     sys.exit(1)
 
@@ -108,12 +110,15 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
     desc_prompt_suffix: str | None = None,
     gen_prompt_suffix: str | None = None,
     aspect_ratio: str | None = None,
-) -> None:
-    """Run the full resize → describe → style → generate pipeline."""
+) -> str | None:
+    """Run the full resize → describe → style → generate pipeline.
+
+    Returns the output image path.
+    """
     console.rule("[bold magenta]imagemine[/]")
 
     # ── Step 1: Resolve input ──────────────────────────────────────────────
-    input_path, input_album_photo_id, input_export_dir = _resolve_input(
+    input_path, input_album_photo_id, input_export_dir, people_names = _resolve_input(
         image_path,
         input_album,
         log=lambda msg: console.print(f"  [dim]{msg}[/]"),
@@ -149,6 +154,10 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 log=log_describe,
                 err=err,
             )
+
+        if people_names:
+            people_str = ", ".join(people_names)
+            description = f"{description}\n\nCharacters in the photo: {people_str}"
 
         console.print(
             Panel(
@@ -242,6 +251,8 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
             svg_path = output_dir / f"imagemine_{run_id}.svg"
             console.save_svg(str(svg_path), title="imagemine")
             console.print(f"  [dim]Session saved:[/] [cyan]{svg_path}[/]")
+
+        return output_path
     finally:
         if resized_path is not None:
             resized_path.unlink(missing_ok=True)

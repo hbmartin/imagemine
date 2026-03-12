@@ -3,7 +3,10 @@ import subprocess
 
 import pytest
 
-from imagemine._album import _add_to_photos_album, _random_photo_from_album
+from imagemine._album import (
+    _add_to_photos_album,
+    _random_photo_from_album,
+)
 
 
 def test_add_to_photos_album_passes_values_via_osascript_argv(monkeypatch, tmp_path):
@@ -119,6 +122,10 @@ def test_random_photo_from_album_skips_mov_and_sidecars(monkeypatch, tmp_path):
 
     monkeypatch.setattr("imagemine._album.tempfile.mkdtemp", fake_mkdtemp)
     monkeypatch.setattr("imagemine._album.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "imagemine._album._people_for_photo",
+        lambda _uuid: ["Alice", "Bob"],
+    )
 
     def side_effect_iterdir(self):
         mov = self / "photo.mov"
@@ -131,13 +138,14 @@ def test_random_photo_from_album_skips_mov_and_sidecars(monkeypatch, tmp_path):
 
     monkeypatch.setattr(pathlib.Path, "iterdir", side_effect_iterdir)
 
-    file_path, photo_id, export_dir = _random_photo_from_album("Album")
+    file_path, photo_id, export_dir, people_names = _random_photo_from_album("Album")
 
     assert call_count == 1
     assert run_calls == 1
     assert file_path.endswith(".jpg")
     assert photo_id == "photo-id-1"
     assert export_dir.exists()
+    assert people_names == ["Alice", "Bob"]
 
 
 def test_random_photo_from_album_raises_after_max_mov_attempts(monkeypatch, tmp_path):

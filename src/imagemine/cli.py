@@ -107,7 +107,7 @@ def main() -> None:
         env_key="ASPECT_RATIO",
     )
 
-    run_pipeline(
+    output_path = run_pipeline(
         conn,
         console,
         err,
@@ -130,3 +130,6 @@ def main() -> None:
         gen_prompt_suffix=gen_prompt_suffix,
         aspect_ratio=aspect_ratio,
     )
+
+    if args.silent and output_path:
+        print(output_path)
