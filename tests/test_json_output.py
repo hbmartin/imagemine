@@ -378,7 +378,7 @@ def test_cli_skips_photos_backend_without_album_options(monkeypatch, tmp_path) -
     assert pipeline_calls[0]["photos"] is None
 
 
-def test_cli_constructs_photos_backend_when_album_requested(
+def test_cli_skips_input_album_backend_when_image_path_is_explicit(
     monkeypatch,
     tmp_path,
 ) -> None:
@@ -390,6 +390,62 @@ def test_cli_constructs_photos_backend_when_album_requested(
         output_dir=str(tmp_path / "out"),
         config_path=None,
         image_path="photo.jpg",
+        input_album="Camera Roll",
+        destination_album=None,
+        desc_temp=None,
+        img_temp=None,
+        story=None,
+        style=None,
+        choose_style=False,
+        fresh=False,
+        aspect_ratio=None,
+    )
+    pipeline_calls = []
+
+    monkeypatch.setattr(cli, "_parse_args", lambda: args)
+    monkeypatch.setattr(cli, "Console", lambda **_kwargs: _FakeConsole())
+    monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
+    monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
+    )
+    monkeypatch.setattr(
+        cli,
+        "_resolve_option",
+        lambda _conn, cli_value, *_args, **_kwargs: cli_value,
+    )
+    monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
+    monkeypatch.setattr(
+        cli,
+        "MacOSPhotosBackend",
+        lambda: (_ for _ in ()).throw(AssertionError("backend should not be built")),
+    )
+    monkeypatch.setattr(
+        cli,
+        "run_pipeline",
+        lambda *_args, **kwargs: pipeline_calls.append(kwargs),
+    )
+
+    cli.main()
+
+    assert len(pipeline_calls) == 1
+    assert pipeline_calls[0]["photos"] is None
+
+
+def test_cli_constructs_photos_backend_for_album_input_without_image_path(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    cli = _import_cli(monkeypatch)
+    args = SimpleNamespace(
+        silent=False,
+        json_output=False,
+        session_svg=False,
+        output_dir=str(tmp_path / "out"),
+        config_path=None,
+        image_path=None,
         input_album="Camera Roll",
         destination_album=None,
         desc_temp=None,
@@ -441,7 +497,7 @@ def test_cli_album_support_requires_macos(monkeypatch, tmp_path) -> None:
         session_svg=False,
         output_dir=str(tmp_path / "out"),
         config_path=None,
-        image_path="photo.jpg",
+        image_path=None,
         input_album="Camera Roll",
         destination_album=None,
         desc_temp=None,

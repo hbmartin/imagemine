@@ -206,3 +206,21 @@ def test_parse_args_image_path_parsed(monkeypatch) -> None:
     args = _parse_args()
     assert args.image_path == "sunset.jpg"
     assert args.launchd is None
+
+
+def test_parse_args_rejects_style_and_choose_style_together(
+    monkeypatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["imagemine", "photo.jpg", "--style", "Watercolor", "--choose-style"],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        _parse_args()
+
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "argument --choose-style: not allowed with argument --style" in captured.err

@@ -30,17 +30,28 @@ if TYPE_CHECKING:
 
 def _resolve_photos_backend(
     *,
-    input_album: str | None,
-    destination_album: str | None,
+    needs_photos_backend: bool,
     err: Callable[[str], None],
 ) -> PhotosBackend | None:
     """Create the Photos backend only when album features are requested."""
-    if input_album is None and destination_album is None:
+    if not needs_photos_backend:
         return None
     if sys.platform != "darwin":
         err("Photos album support requires macOS.")
         sys.exit(1)
     return MacOSPhotosBackend()
+
+
+def _needs_photos_backend(
+    *,
+    image_path: str | None,
+    input_album: str | None,
+    destination_album: str | None,
+) -> bool:
+    """Return whether this invocation needs the Photos backend."""
+    return destination_album is not None or (
+        image_path is None and input_album is not None
+    )
 
 
 def main() -> None:
@@ -142,8 +153,11 @@ def main() -> None:
 
     progress = NullProgressReporter() if quiet else RichProgressReporter(console)
     photos = _resolve_photos_backend(
-        input_album=input_album,
-        destination_album=destination_album,
+        needs_photos_backend=_needs_photos_backend(
+            image_path=args.image_path,
+            input_album=input_album,
+            destination_album=destination_album,
+        ),
         err=err,
     )
 

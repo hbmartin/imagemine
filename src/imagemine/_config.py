@@ -229,7 +229,8 @@ examples:
             " when generating the image description"
         ),
     )
-    parser.add_argument(
+    style_group = parser.add_mutually_exclusive_group()
+    style_group.add_argument(
         "--style",
         default=None,
         metavar="PROMPT",
@@ -261,7 +262,7 @@ examples:
         action="store_true",
         help="Interactively select and remove styles from the database and exit",
     )
-    parser.add_argument(
+    style_group.add_argument(
         "--choose-style",
         action="store_true",
         help="Interactively pick style(s) from the database before running",

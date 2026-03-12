@@ -88,7 +88,7 @@ imagemine --config
 | `--story TEXT`        | —          | Background context prepended to the Claude prompt when generating the image description             |
 | `--style PROMPT`      | —          | Use PROMPT as the style instead of a randomly selected one from the database                        |
 | `--fresh`             | off        | Pick style randomly from the least-used styles (ignored when `--style` is given)                    |
-| `--choose-style`      | off        | Interactively pick style(s) from a numbered table before running the pipeline                       |
+| `--choose-style`      | off        | Interactively pick style(s) from a numbered table before running the pipeline; cannot be combined with `--style` |
 | `--list-styles`       | —          | Show all styles in the database as a table and exit      |
 | `--add-style`         | —          | Interactively add a new style to the database and exit   |
 | `--remove-style`      | —          | Interactively select and remove styles from the database and exit |
@@ -166,11 +166,11 @@ Example styles: Watercolor, 8-Bit Pixel Art, Ukiyo-e Woodblock, Neon Noir, Tarot
 imagemine photo.jpg --choose-style
 ```
 
-Displays a numbered table of all styles. Enter one number (e.g. `3`) to use that style, or a comma-separated list (e.g. `1,5,12`) to blend the selected styles into a single prompt. Each selected style's usage count is incremented.
+Displays a numbered table of all styles. Enter one number (e.g. `3`) to use that style, or a comma-separated list (e.g. `1,5,12`) to blend the selected styles into a single prompt. Each selected style's usage count is incremented. `--choose-style` is mutually exclusive with `--style`.
 
 ### Using a custom style prompt
 
-Use `--style` to pass a free-form style prompt directly instead of picking one at random from the database. imagemine will describe the photo, append the style text, and generate the image.
+Use `--style` to pass a free-form style prompt directly instead of picking one at random from the database. imagemine will describe the photo, append the style text, and generate the image. `--style` cannot be combined with `--choose-style`.
 
 ```sh
 imagemine photo.jpg --style "Risograph print, grainy ink, limited overlapping spot colors"
