@@ -638,3 +638,89 @@ def test_get_description_exits_on_failure(monkeypatch) -> None:
 
     assert exc_info.value.code == 1
     assert errors == ["Description generation failed: boom"]
+
+
+def test_get_description_appends_people_names_to_prompt_suffix(monkeypatch) -> None:
+    describe_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(describe, "avg_duration_ms", lambda _conn, _column: None)
+    monkeypatch.setattr(
+        describe,
+        "describe_image",
+        lambda *_args, **kwargs: describe_calls.append(kwargs) or "story text",
+    )
+    monkeypatch.setattr(describe, "update_run", lambda _conn, run_id, **kwargs: None)
+
+    describe._get_description(
+        object(),
+        9,
+        Image.new("RGB", (5, 5), color="green"),
+        desc_temp=1.2,
+        api_key="api-key",
+        model="claude-custom",
+        story=None,
+        prompt_suffix="existing suffix",
+        people_names=["Alice", "Bob"],
+        log=lambda _msg: None,
+        err=lambda _msg: None,
+    )
+
+    assert describe_calls[0]["prompt_suffix"] == (
+        "existing suffix\n\nCharacters in the photo: Alice, Bob"
+    )
+
+
+def test_get_description_sets_people_names_as_suffix_when_none(monkeypatch) -> None:
+    describe_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(describe, "avg_duration_ms", lambda _conn, _column: None)
+    monkeypatch.setattr(
+        describe,
+        "describe_image",
+        lambda *_args, **kwargs: describe_calls.append(kwargs) or "story text",
+    )
+    monkeypatch.setattr(describe, "update_run", lambda _conn, run_id, **kwargs: None)
+
+    describe._get_description(
+        object(),
+        9,
+        Image.new("RGB", (5, 5), color="green"),
+        desc_temp=1.2,
+        api_key="api-key",
+        model="claude-custom",
+        story=None,
+        prompt_suffix=None,
+        people_names=["Charlie"],
+        log=lambda _msg: None,
+        err=lambda _msg: None,
+    )
+
+    assert describe_calls[0]["prompt_suffix"] == "Characters in the photo: Charlie"
+
+
+def test_get_description_ignores_empty_people_names(monkeypatch) -> None:
+    describe_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(describe, "avg_duration_ms", lambda _conn, _column: None)
+    monkeypatch.setattr(
+        describe,
+        "describe_image",
+        lambda *_args, **kwargs: describe_calls.append(kwargs) or "story text",
+    )
+    monkeypatch.setattr(describe, "update_run", lambda _conn, run_id, **kwargs: None)
+
+    describe._get_description(
+        object(),
+        9,
+        Image.new("RGB", (5, 5), color="green"),
+        desc_temp=1.2,
+        api_key="api-key",
+        model="claude-custom",
+        story=None,
+        prompt_suffix="keep this",
+        people_names=[],
+        log=lambda _msg: None,
+        err=lambda _msg: None,
+    )
+
+    assert describe_calls[0]["prompt_suffix"] == "keep this"

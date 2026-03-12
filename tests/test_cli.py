@@ -85,10 +85,12 @@ def _base_args(tmp_path, **overrides) -> SimpleNamespace:
         "story": None,
         "style": None,
         "fresh": False,
+        "choose_style": False,
         "list_styles": False,
         "add_style": False,
         "remove_style": False,
         "silent": False,
+        "json_output": False,
         "history": False,
         "config": False,
         "session_svg": False,
@@ -98,6 +100,20 @@ def _base_args(tmp_path, **overrides) -> SimpleNamespace:
     }
     values.update(overrides)
     return SimpleNamespace(**values)
+
+
+class _FakeProgress:
+    """Fake progress reporter for tests."""
+
+    @staticmethod
+    def step(_spinner, _color):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _noop():
+            yield lambda _msg: None
+
+        return _noop()
 
 
 def _pipeline_kwargs(**overrides) -> dict:
@@ -116,6 +132,7 @@ def _pipeline_kwargs(**overrides) -> dict:
         "style": None,
         "fresh": False,
         "session_svg": False,
+        "progress": _FakeProgress(),
     }
     defaults.update(overrides)
     return defaults
@@ -162,6 +179,7 @@ def test_resolve_input_uses_image_path(monkeypatch, tmp_path) -> None:
     path, photo_id, export_dir, people = pipeline._resolve_input(
         str(img),
         None,
+        photos=None,
         log=lambda _: None,
         err=lambda _: None,
     )
@@ -177,7 +195,9 @@ def test_resolve_input_no_path_no_album_exits(monkeypatch) -> None:
     errors = []
 
     with pytest.raises(SystemExit) as exc_info:
-        pipeline._resolve_input(None, None, log=lambda _: None, err=errors.append)
+        pipeline._resolve_input(
+            None, None, photos=None, log=lambda _: None, err=errors.append,
+        )
     assert exc_info.value.code == 1
     assert errors == ["Provide an image path or configure INPUT_ALBUM"]
 
@@ -191,15 +211,18 @@ def test_resolve_input_image_path_takes_priority_over_album(
     img.write_bytes(b"fake")
     album_calls = []
 
-    def fake_random_photo(album_name):
-        album_calls.append(album_name)
-        return "/from/album.jpg", "photo-id-123", tmp_path / "album-export", []
+    class TrackingPhotos:
+        def random_photo_from_album(self, album_name):
+            album_calls.append(album_name)
+            return "/from/album.jpg", "photo-id-123", tmp_path / "album-export", []
 
-    monkeypatch.setattr(pipeline, "_random_photo_from_album", fake_random_photo)
+        def add_to_photos_album(self, *_args):
+            pass
 
     path, photo_id, export_dir, people = pipeline._resolve_input(
         str(img),
         "MyAlbum",
+        photos=TrackingPhotos(),
         log=lambda _: None,
         err=lambda _: None,
     )
@@ -216,15 +239,17 @@ def test_resolve_input_album_returns_cleanup_dir(monkeypatch, tmp_path) -> None:
     export_dir = tmp_path / "album-export"
     export_dir.mkdir()
 
-    monkeypatch.setattr(
-        pipeline,
-        "_random_photo_from_album",
-        lambda _album_name: ("/from/album.jpg", "photo-id-123", export_dir, ["Alice"]),
-    )
+    class FakePhotos:
+        def random_photo_from_album(self, _album_name):
+            return "/from/album.jpg", "photo-id-123", export_dir, ["Alice"]
+
+        def add_to_photos_album(self, *_args):
+            pass
 
     path, photo_id, cleanup_dir, people = pipeline._resolve_input(
         None,
         "MyAlbum",
+        photos=FakePhotos(),
         log=lambda _: None,
         err=lambda _: None,
     )
@@ -239,16 +264,18 @@ def test_resolve_input_album_failure_calls_err_and_exits(monkeypatch) -> None:
     pipeline = _import_pipeline(monkeypatch)
     errors = []
 
-    monkeypatch.setattr(
-        pipeline,
-        "_random_photo_from_album",
-        lambda _name: (_ for _ in ()).throw(RuntimeError("album failed")),
-    )
+    class FailingPhotos:
+        def random_photo_from_album(self, _album_name):
+            raise RuntimeError("album failed")
+
+        def add_to_photos_album(self, *_args):
+            pass
 
     with pytest.raises(SystemExit) as exc_info:
         pipeline._resolve_input(
             None,
             "MyAlbum",
+            photos=FailingPhotos(),
             log=lambda _msg: None,
             err=errors.append,
         )
@@ -349,11 +376,12 @@ def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
         "_print_summary",
         lambda *args, **kwargs: summary_calls.append((args, kwargs)),
     )
-    monkeypatch.setattr(
-        pipeline,
-        "_add_to_photos_album",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("import failed")),
-    )
+    class FailingPhotos:
+        def random_photo_from_album(self, _name):
+            return None
+
+        def add_to_photos_album(self, *_args):
+            raise RuntimeError("import failed")
 
     errors = []
 
@@ -363,7 +391,11 @@ def test_run_pipeline_cleans_up_temp_files_and_logs_album_import_failure(
         errors.append,
         0.0,
         output_dir,
-        **_pipeline_kwargs(input_album="Album", destination_album="Dest"),
+        **_pipeline_kwargs(
+            input_album="Album",
+            destination_album="Dest",
+            photos=FailingPhotos(),
+        ),
     )
 
     assert errors == ["Failed to add to Photos album 'Dest': import failed"]
@@ -419,11 +451,14 @@ def test_run_pipeline_with_custom_style_saves_session_svg(
         return str(output_path)
 
     monkeypatch.setattr(pipeline, "_run_generation", fake_run_generation)
-    monkeypatch.setattr(
-        pipeline,
-        "_add_to_photos_album",
-        lambda output, album, description: added.append((output, album, description)),
-    )
+
+    class TrackingPhotos:
+        def random_photo_from_album(self, _name):
+            return None
+
+        def add_to_photos_album(self, output, album, description):
+            added.append((output, album, description))
+
     monkeypatch.setattr(
         pipeline,
         "_print_summary",
@@ -440,6 +475,7 @@ def test_run_pipeline_with_custom_style_saves_session_svg(
             destination_album="Dest",
             style="Custom glow",
             session_svg=True,
+            photos=TrackingPhotos(),
         ),
     )
 

@@ -19,6 +19,7 @@ def _base_args(**overrides) -> SimpleNamespace:
         "list_styles": False,
         "add_style": False,
         "remove_style": False,
+        "choose_style": False,
         "launchd": None,
         "config_path": None,
     }
@@ -388,6 +389,7 @@ def test_cli_main_stops_after_subcommand(
     fake_console = _FakeConsole()
     args = SimpleNamespace(
         silent=False,
+        json_output=False,
         session_svg=False,
         output_dir=str(tmp_path / "out"),
         config_path=None,
@@ -424,6 +426,7 @@ def test_cli_main_runs_pipeline_with_resolved_values(
     fake_console = _FakeConsole()
     args = SimpleNamespace(
         silent=True,
+        json_output=False,
         session_svg=True,
         output_dir=str(tmp_path / "renders"),
         config_path="~/imagemine.db",
@@ -434,6 +437,7 @@ def test_cli_main_runs_pipeline_with_resolved_values(
         img_temp=0.9,
         story="story",
         style="custom style",
+        choose_style=False,
         fresh=True,
         aspect_ratio="16:9",
     )
@@ -504,24 +508,24 @@ def test_cli_main_runs_pipeline_with_resolved_values(
         123.45,
     )
     assert pipeline_args[4] == (tmp_path / "renders").resolve()
-    assert pipeline_kwargs == {
-        "image_path": "photo.jpg",
-        "input_album": "resolved-input_album",
-        "destination_album": "resolved-destination_album",
-        "desc_temp": 1.2,
-        "img_temp": 0.8,
-        "claude_model": "claude-override",
-        "gemini_model": "gemini-override",
-        "anthropic_api_key": "anthropic_api_key-value",
-        "gemini_api_key": "gemini_api_key-value",
-        "story": "story",
-        "style": "custom style",
-        "fresh": True,
-        "session_svg": True,
-        "desc_prompt_suffix": "resolved-description_prompt_suffix",
-        "gen_prompt_suffix": "resolved-generation_prompt_suffix",
-        "aspect_ratio": "resolved-aspect_ratio",
-    }
+    assert pipeline_kwargs["image_path"] == "photo.jpg"
+    assert pipeline_kwargs["input_album"] == "resolved-input_album"
+    assert pipeline_kwargs["destination_album"] == "resolved-destination_album"
+    assert pipeline_kwargs["desc_temp"] == 1.2
+    assert pipeline_kwargs["img_temp"] == 0.8
+    assert pipeline_kwargs["claude_model"] == "claude-override"
+    assert pipeline_kwargs["gemini_model"] == "gemini-override"
+    assert pipeline_kwargs["anthropic_api_key"] == "anthropic_api_key-value"
+    assert pipeline_kwargs["gemini_api_key"] == "gemini_api_key-value"
+    assert pipeline_kwargs["story"] == "story"
+    assert pipeline_kwargs["style"] == "custom style"
+    assert pipeline_kwargs["fresh"] is True
+    assert pipeline_kwargs["session_svg"] is True
+    assert pipeline_kwargs["desc_prompt_suffix"] == "resolved-description_prompt_suffix"
+    assert pipeline_kwargs["gen_prompt_suffix"] == "resolved-generation_prompt_suffix"
+    assert pipeline_kwargs["aspect_ratio"] == "resolved-aspect_ratio"
+    assert "progress" in pipeline_kwargs
+    assert "photos" in pipeline_kwargs
 
 
 def test_cli_main_err_prints_exception_when_called_during_handled_failure(
@@ -532,6 +536,7 @@ def test_cli_main_err_prints_exception_when_called_during_handled_failure(
     fake_console = _FakeConsole()
     args = SimpleNamespace(
         silent=False,
+        json_output=False,
         session_svg=False,
         output_dir=str(tmp_path / "out"),
         config_path=None,
@@ -542,6 +547,7 @@ def test_cli_main_err_prints_exception_when_called_during_handled_failure(
         img_temp=None,
         story=None,
         style=None,
+        choose_style=False,
         fresh=False,
         aspect_ratio=None,
     )

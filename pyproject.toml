@@ -96,6 +96,7 @@ lint.ignore = ["BLE001", "D107", "D203", "D213", "S608", "T201"]
 "src/imagemine/_styles.py" = ["E501"]  # long prompt strings
 "src/imagemine/_describe.py" = ["E501"]  # long prompt strings
 "src/imagemine/_album.py" = ["E501", "S603"]
+"src/imagemine/_progress.py" = ["ARG002"]  # NullProgressReporter must match protocol signature
 "tests/**/*.py" = [
     "ANN",    # Type annotations not required in tests
     "D",      # Docstrings not required in tests

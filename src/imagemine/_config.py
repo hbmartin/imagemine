@@ -170,6 +170,22 @@ def _parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Transform a photo into a re-imagined image",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  imagemine photo.jpg                          Basic usage
+  imagemine --input-album "Camera Roll"        Random photo from album
+  imagemine photo.jpg --style "Watercolor"     Use a specific style
+  imagemine photo.jpg --choose-style           Pick style(s) interactively
+  imagemine photo.jpg --fresh                  Use a least-used style
+  imagemine --list-styles                      Show available styles
+  imagemine --add-style                        Add a new style
+  imagemine photo.jpg --json                   Output results as JSON
+  imagemine photo.jpg --silent                 Print only the output path
+  imagemine --config                           Configure settings
+  imagemine --history                          Show recent runs
+  imagemine --launchd 30                       Schedule runs every 30 min
+""",
     )
     parser.add_argument(
         "image_path",
@@ -246,9 +262,20 @@ def _parse_args() -> argparse.Namespace:
         help="Interactively select and remove styles from the database and exit",
     )
     parser.add_argument(
+        "--choose-style",
+        action="store_true",
+        help="Interactively pick style(s) from the database before running",
+    )
+    parser.add_argument(
         "--silent",
         action="store_true",
-        help="Suppress all output",
+        help="Suppress Rich UI; only print the output path",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output run results as JSON (suppresses Rich UI)",
     )
     parser.add_argument(
         "--history",
