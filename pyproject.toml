@@ -47,9 +47,9 @@ keywords = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/harold-martin/imagemine"
-Repository = "https://github.com/harold-martin/imagemine"
-Issues = "https://github.com/harold-martin/imagemine/issues"
+Homepage = "https://github.com/hbmartin/imagemine"
+Repository = "https://github.com/hbmartin/imagemine"
+Issues = "https://github.com/hbmartin/imagemine/issues"
 
 [build-system]
 requires = ["uv_build>=0.10.9"]
