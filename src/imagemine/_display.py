@@ -121,6 +121,7 @@ def _print_summary(  # noqa: PLR0913
     input_path: str,
     input_album: str | None,
     output_path: str,
+    destination_album: str | None = None,
 ) -> None:
     """Print the final summary panel."""
     run_data = conn.execute(
@@ -138,7 +139,7 @@ def _print_summary(  # noqa: PLR0913
     if img_ms:
         grid.add_row("generate", f"[yellow]{img_ms / 1000:.1f}s[/]")
     grid.add_row("total", f"[yellow]{total_s:.1f}s[/]")
-    grid.add_row("output", f"[green]{output_path}[/]")
+    grid.add_row("output", f"[green]{destination_album or output_path}[/]")
 
     console.rule()
     console.print(Panel(grid, title="[bold green]Done[/]", border_style="green"))

@@ -108,16 +108,25 @@ def test_json_output_prints_valid_json(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setattr(cli, "init_db", lambda _db_path: _make_fake_conn())
     monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
     monkeypatch.setattr(
-        cli, "_resolve_required_option", lambda *_a, default, **_kw: default,
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
     )
-    monkeypatch.setattr(cli, "_resolve_option", lambda *_a, **_kw: None)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_option",
+        lambda _conn, cli_value, *_args, **_kwargs: cli_value,
+    )
     monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
 
     fake_result = pipeline_module.PipelineResult(
-        output_path="/tmp/out/generated.png", run_id=42,
+        output_path="/tmp/out/generated.png",
+        run_id=42,
     )
     monkeypatch.setattr(
-        cli, "run_pipeline", lambda *_args, **_kwargs: fake_result,
+        cli,
+        "run_pipeline",
+        lambda *_args, **_kwargs: fake_result,
     )
 
     # Fake DB query for run data
@@ -169,16 +178,25 @@ def test_silent_prints_only_path(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
     monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
     monkeypatch.setattr(
-        cli, "_resolve_required_option", lambda *_a, default, **_kw: default,
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
     )
-    monkeypatch.setattr(cli, "_resolve_option", lambda *_a, **_kw: None)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_option",
+        lambda _conn, cli_value, *_args, **_kwargs: cli_value,
+    )
     monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
 
     fake_result = pipeline_module.PipelineResult(
-        output_path="/tmp/out/generated.png", run_id=42,
+        output_path="/tmp/out/generated.png",
+        run_id=42,
     )
     monkeypatch.setattr(
-        cli, "run_pipeline", lambda *_args, **_kwargs: fake_result,
+        cli,
+        "run_pipeline",
+        lambda *_args, **_kwargs: fake_result,
     )
 
     cli.main()
@@ -189,7 +207,6 @@ def test_silent_prints_only_path(monkeypatch, tmp_path, capsys) -> None:
 
 def test_choose_style_sets_style_kwarg(monkeypatch, tmp_path) -> None:
     cli = _import_cli(monkeypatch)
-    pipeline_module = importlib.import_module("imagemine._pipeline")
 
     args = SimpleNamespace(
         silent=False,
@@ -215,15 +232,27 @@ def test_choose_style_sets_style_kwarg(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
     monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
     monkeypatch.setattr(
-        cli, "_resolve_required_option", lambda *_a, default, **_kw: default,
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
     )
-    monkeypatch.setattr(cli, "_resolve_option", lambda *_a, **_kw: None)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_option",
+        lambda _conn, cli_value, *_args, **_kwargs: cli_value,
+    )
     monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
     monkeypatch.setattr(
-        cli, "_run_choose_style", lambda _conn: ("Watercolor", "soft edges"),
+        cli,
+        "_run_choose_style",
+        lambda _conn: SimpleNamespace(
+            style_prompt="Watercolor: soft edges",
+            style_names=("Watercolor",),
+        ),
     )
     monkeypatch.setattr(
-        cli, "run_pipeline",
+        cli,
+        "run_pipeline",
         lambda *_args, **kwargs: pipeline_calls.append(kwargs),
     )
 
@@ -231,6 +260,232 @@ def test_choose_style_sets_style_kwarg(monkeypatch, tmp_path) -> None:
 
     assert len(pipeline_calls) == 1
     assert pipeline_calls[0]["style"] == "Watercolor: soft edges"
+    assert pipeline_calls[0]["selected_style_names"] == ("Watercolor",)
+
+
+def test_choose_style_blend_passes_all_selected_names(monkeypatch, tmp_path) -> None:
+    cli = _import_cli(monkeypatch)
+    args = SimpleNamespace(
+        silent=False,
+        json_output=False,
+        session_svg=False,
+        output_dir=str(tmp_path / "out"),
+        config_path=None,
+        image_path="photo.jpg",
+        input_album=None,
+        destination_album=None,
+        desc_temp=None,
+        img_temp=None,
+        story=None,
+        style=None,
+        choose_style=True,
+        fresh=False,
+        aspect_ratio=None,
+    )
+    pipeline_calls = []
+
+    monkeypatch.setattr(cli, "_parse_args", lambda: args)
+    monkeypatch.setattr(cli, "Console", lambda **_kwargs: _FakeConsole())
+    monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
+    monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
+    )
+    monkeypatch.setattr(
+        cli,
+        "_resolve_option",
+        lambda _conn, cli_value, *_args, **_kwargs: cli_value,
+    )
+    monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
+    monkeypatch.setattr(
+        cli,
+        "_run_choose_style",
+        lambda _conn: SimpleNamespace(
+            style_prompt=("Watercolor: soft edges; Neon Noir: rain-slicked streets"),
+            style_names=("Watercolor", "Neon Noir"),
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "run_pipeline",
+        lambda *_args, **kwargs: pipeline_calls.append(kwargs),
+    )
+
+    cli.main()
+
+    assert len(pipeline_calls) == 1
+    assert pipeline_calls[0]["style"] == (
+        "Watercolor: soft edges; Neon Noir: rain-slicked streets"
+    )
+    assert pipeline_calls[0]["selected_style_names"] == (
+        "Watercolor",
+        "Neon Noir",
+    )
+
+
+def test_cli_skips_photos_backend_without_album_options(monkeypatch, tmp_path) -> None:
+    cli = _import_cli(monkeypatch)
+    args = SimpleNamespace(
+        silent=False,
+        json_output=False,
+        session_svg=False,
+        output_dir=str(tmp_path / "out"),
+        config_path=None,
+        image_path="photo.jpg",
+        input_album=None,
+        destination_album=None,
+        desc_temp=None,
+        img_temp=None,
+        story=None,
+        style=None,
+        choose_style=False,
+        fresh=False,
+        aspect_ratio=None,
+    )
+    pipeline_calls = []
+
+    monkeypatch.setattr(cli, "_parse_args", lambda: args)
+    monkeypatch.setattr(cli, "Console", lambda **_kwargs: _FakeConsole())
+    monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
+    monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
+    )
+    monkeypatch.setattr(
+        cli,
+        "_resolve_option",
+        lambda _conn, cli_value, *_args, **_kwargs: cli_value,
+    )
+    monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
+    monkeypatch.setattr(
+        cli,
+        "MacOSPhotosBackend",
+        lambda: (_ for _ in ()).throw(AssertionError("backend should not be built")),
+    )
+    monkeypatch.setattr(
+        cli,
+        "run_pipeline",
+        lambda *_args, **kwargs: pipeline_calls.append(kwargs),
+    )
+
+    cli.main()
+
+    assert len(pipeline_calls) == 1
+    assert pipeline_calls[0]["photos"] is None
+
+
+def test_cli_constructs_photos_backend_when_album_requested(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    cli = _import_cli(monkeypatch)
+    args = SimpleNamespace(
+        silent=False,
+        json_output=False,
+        session_svg=False,
+        output_dir=str(tmp_path / "out"),
+        config_path=None,
+        image_path="photo.jpg",
+        input_album="Camera Roll",
+        destination_album=None,
+        desc_temp=None,
+        img_temp=None,
+        story=None,
+        style=None,
+        choose_style=False,
+        fresh=False,
+        aspect_ratio=None,
+    )
+    backend = object()
+    pipeline_calls = []
+
+    monkeypatch.setattr(cli, "_parse_args", lambda: args)
+    monkeypatch.setattr(cli, "Console", lambda **_kwargs: _FakeConsole())
+    monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
+    monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
+    )
+    monkeypatch.setattr(
+        cli,
+        "_resolve_option",
+        lambda _conn, cli_value, *_args, **_kwargs: cli_value,
+    )
+    monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "MacOSPhotosBackend", lambda: backend)
+    monkeypatch.setattr(
+        cli,
+        "run_pipeline",
+        lambda *_args, **kwargs: pipeline_calls.append(kwargs),
+    )
+
+    cli.main()
+
+    assert len(pipeline_calls) == 1
+    assert pipeline_calls[0]["photos"] is backend
+
+
+def test_cli_album_support_requires_macos(monkeypatch, tmp_path) -> None:
+    cli = _import_cli(monkeypatch)
+    fake_console = _FakeConsole()
+    args = SimpleNamespace(
+        silent=False,
+        json_output=False,
+        session_svg=False,
+        output_dir=str(tmp_path / "out"),
+        config_path=None,
+        image_path="photo.jpg",
+        input_album="Camera Roll",
+        destination_album=None,
+        desc_temp=None,
+        img_temp=None,
+        story=None,
+        style=None,
+        choose_style=False,
+        fresh=False,
+        aspect_ratio=None,
+    )
+    pipeline_calls = []
+
+    monkeypatch.setattr(cli, "_parse_args", lambda: args)
+    monkeypatch.setattr(cli, "Console", lambda **_kwargs: fake_console)
+    monkeypatch.setattr(cli, "init_db", lambda _db_path: object())
+    monkeypatch.setattr(cli, "dispatch_subcommand", lambda *_args: False)
+    monkeypatch.setattr(
+        cli,
+        "_resolve_required_option",
+        lambda *_a, default, **_kw: default,
+    )
+    monkeypatch.setattr(
+        cli,
+        "_resolve_option",
+        lambda _conn, cli_value, *_args, **_kwargs: cli_value,
+    )
+    monkeypatch.setattr(cli, "_resolve_api_key", lambda *_a: "key")
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setattr(
+        cli,
+        "run_pipeline",
+        lambda *_args, **kwargs: pipeline_calls.append(kwargs),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main()
+
+    assert exc_info.value.code == 1
+    assert pipeline_calls == []
+    assert any(
+        "Photos album support requires macOS." in str(args[0])
+        for args, _kwargs in fake_console.print_calls
+        if args
+    )
 
 
 def _make_fake_conn():

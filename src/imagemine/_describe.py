@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from PIL import Image
 
 PROMPT = """
-You are a surrealist writer. Look at this photo carefully, the specific details matter.
+You are a surrealist writer and visual director. Look at this photo carefully, the specific details matter.
 (e.g. the dog's motivations, expression, body language, and surroundings.)
 Before writing, identify the single funniest true thing about this specific photo. Build everything from that.
 
@@ -47,10 +47,10 @@ Rules for the IMAGE description:
 - Add a foreground detail that frames the chaos
 - Describe only what a camera would literally capture at that instant
 - Be specific: include e.g. expressions and absurd physical details
-- Include Hyper-Specific details that make the scene come alive. More detail is better.
-- Provide Context and Intent: Explain the purpose of the image.
-- Use Step-by-Step Instructions: For complex scenes with many elements, break down steps
-Control the Camera: Use photographic and cinematic language to control the composition.
+- Include hyper-specific details that make the scene come alive. More detail is better.
+- Provide context and intent: explain the purpose of the image.
+- For complex scenes with many elements, break down steps
+- Use photographic and cinematic language to control the composition.
 """
 
 

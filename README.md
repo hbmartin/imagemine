@@ -166,7 +166,7 @@ Example styles: Watercolor, 8-Bit Pixel Art, Ukiyo-e Woodblock, Neon Noir, Tarot
 imagemine photo.jpg --choose-style
 ```
 
-Displays a numbered table of all styles. Enter one number (e.g. `3`) to use that style, or a comma-separated list (e.g. `1,5,12`) to pick randomly from the selected set.
+Displays a numbered table of all styles. Enter one number (e.g. `3`) to use that style, or a comma-separated list (e.g. `1,5,12`) to blend the selected styles into a single prompt. Each selected style's usage count is incremented.
 
 ### Using a custom style prompt
 

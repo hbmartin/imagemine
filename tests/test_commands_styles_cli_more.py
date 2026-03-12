@@ -424,6 +424,7 @@ def test_cli_main_runs_pipeline_with_resolved_values(
 ) -> None:
     cli = _import_cli(monkeypatch)
     fake_console = _FakeConsole()
+    backend = object()
     args = SimpleNamespace(
         silent=True,
         json_output=False,
@@ -479,10 +480,15 @@ def test_cli_main_runs_pipeline_with_resolved_values(
         "_resolve_api_key",
         lambda _conn, key, _prompt: f"{key.lower()}-value",
     )
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "MacOSPhotosBackend", lambda: backend)
     monkeypatch.setattr(
         cli,
         "run_pipeline",
-        lambda *args_, **kwargs: pipeline_calls.append((args_, kwargs)),
+        lambda *args_, **kwargs: (
+            pipeline_calls.append((args_, kwargs)),
+            SimpleNamespace(output_path="/tmp/out/generated.png", run_id=1),
+        )[1],
     )
 
     cli.main()
@@ -501,12 +507,10 @@ def test_cli_main_runs_pipeline_with_resolved_values(
         ("ASPECT_RATIO", "16:9", "ASPECT_RATIO"),
     ]
     pipeline_args, pipeline_kwargs = pipeline_calls[0]
-    assert pipeline_args[:4] == (
-        ("db", pathlib.Path("~/imagemine.db").expanduser()),
-        fake_console,
-        pipeline_args[2],
-        123.45,
-    )
+    assert pipeline_args[0] == ("db", pathlib.Path("~/imagemine.db").expanduser())
+    assert pipeline_args[1] is fake_console
+    assert callable(pipeline_args[2])
+    assert pipeline_args[3] == 123.45
     assert pipeline_args[4] == (tmp_path / "renders").resolve()
     assert pipeline_kwargs["image_path"] == "photo.jpg"
     assert pipeline_kwargs["input_album"] == "resolved-input_album"
@@ -520,12 +524,13 @@ def test_cli_main_runs_pipeline_with_resolved_values(
     assert pipeline_kwargs["story"] == "story"
     assert pipeline_kwargs["style"] == "custom style"
     assert pipeline_kwargs["fresh"] is True
+    assert pipeline_kwargs["selected_style_names"] == ()
     assert pipeline_kwargs["session_svg"] is True
     assert pipeline_kwargs["desc_prompt_suffix"] == "resolved-description_prompt_suffix"
     assert pipeline_kwargs["gen_prompt_suffix"] == "resolved-generation_prompt_suffix"
     assert pipeline_kwargs["aspect_ratio"] == "resolved-aspect_ratio"
     assert "progress" in pipeline_kwargs
-    assert "photos" in pipeline_kwargs
+    assert pipeline_kwargs["photos"] is backend
 
 
 def test_cli_main_err_prints_exception_when_called_during_handled_failure(

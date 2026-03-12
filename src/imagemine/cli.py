@@ -4,6 +4,7 @@ import json
 import pathlib
 import sys
 import time
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 
@@ -20,6 +21,26 @@ from ._photos import MacOSPhotosBackend
 from ._pipeline import run_pipeline
 from ._progress import NullProgressReporter, RichProgressReporter
 from ._styles import _run_choose_style
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from ._photos import PhotosBackend
+
+
+def _resolve_photos_backend(
+    *,
+    input_album: str | None,
+    destination_album: str | None,
+    err: Callable[[str], None],
+) -> PhotosBackend | None:
+    """Create the Photos backend only when album features are requested."""
+    if input_album is None and destination_album is None:
+        return None
+    if sys.platform != "darwin":
+        err("Photos album support requires macOS.")
+        sys.exit(1)
+    return MacOSPhotosBackend()
 
 
 def main() -> None:
@@ -113,12 +134,18 @@ def main() -> None:
     )
 
     style = args.style
+    selected_style_names: tuple[str, ...] = ()
     if args.choose_style and style is None:
-        chosen_name, chosen_desc = _run_choose_style(conn)
-        style = f"{chosen_name}: {chosen_desc}"
+        chosen_style = _run_choose_style(conn)
+        style = chosen_style.style_prompt
+        selected_style_names = chosen_style.style_names
 
     progress = NullProgressReporter() if quiet else RichProgressReporter(console)
-    photos = MacOSPhotosBackend()
+    photos = _resolve_photos_backend(
+        input_album=input_album,
+        destination_album=destination_album,
+        err=err,
+    )
 
     result = run_pipeline(
         conn,
@@ -137,6 +164,7 @@ def main() -> None:
         gemini_api_key=gemini_api_key,
         story=args.story,
         style=style,
+        selected_style_names=selected_style_names,
         fresh=args.fresh,
         session_svg=args.session_svg,
         progress=progress,
@@ -145,9 +173,6 @@ def main() -> None:
         gen_prompt_suffix=gen_prompt_suffix,
         aspect_ratio=aspect_ratio,
     )
-
-    if result is None:
-        return
 
     if args.json_output:
         run_data = conn.execute(
