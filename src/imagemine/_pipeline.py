@@ -74,7 +74,7 @@ def _resolve_input(
             sys.exit(1)
         log(f"Selected: {path} (id: {photo_id})")
         if people_names:
-            log(f"People: {', '.join(people_names)}")
+            log(f"Characters: {', '.join(people_names)}")
         return path, photo_id, export_dir, people_names
     err("Provide an image path or configure INPUT_ALBUM")
     sys.exit(1)
@@ -230,8 +230,7 @@ def _step_generate(  # noqa: PLR0913
     return output_path
 
 
-def _step_album_import(  # noqa: PLR0913
-    console: Console,
+def _step_album_import(
     output_path: str,
     description: str,
     *,
@@ -247,9 +246,6 @@ def _step_album_import(  # noqa: PLR0913
     except Exception as e:
         err(f"Failed to add to Photos album {destination_album!r}: {e}")
         return None
-    console.print(
-        f"  [dim]Added to Photos album:[/] [cyan]{destination_album}[/]",
-    )
     return destination_album
 
 
@@ -343,7 +339,6 @@ def run_pipeline(  # noqa: PLR0913
         )
 
         added_to_album = _step_album_import(
-            console,
             output_path,
             description,
             destination_album=destination_album,
