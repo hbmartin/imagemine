@@ -1,5 +1,6 @@
 """Command-line interface for imagemine."""
 
+import json
 import pathlib
 import sys
 import time
@@ -15,14 +16,18 @@ from ._config import (
 )
 from ._constants import DEFAULT_DB_PATH, DEFAULT_DESCRIPTION_MODEL, DEFAULT_IMAGE_MODEL
 from ._db import init_db
+from ._photos import MacOSPhotosBackend
 from ._pipeline import run_pipeline
+from ._progress import NullProgressReporter, RichProgressReporter
+from ._styles import _run_choose_style
 
 
 def main() -> None:
     """Run the imagemine pipeline: resize, describe, generate."""
     args = _parse_args()
     t_start = time.monotonic()
-    console = Console(quiet=args.silent, record=args.session_svg)
+    quiet = args.silent or args.json_output
+    console = Console(quiet=quiet, record=args.session_svg)
 
     def err(msg: str) -> None:
         console.print(f"[bold red]Error:[/] {msg}")
@@ -107,7 +112,15 @@ def main() -> None:
         env_key="ASPECT_RATIO",
     )
 
-    output_path = run_pipeline(
+    style = args.style
+    if args.choose_style and style is None:
+        chosen_name, chosen_desc = _run_choose_style(conn)
+        style = f"{chosen_name}: {chosen_desc}"
+
+    progress = NullProgressReporter() if quiet else RichProgressReporter(console)
+    photos = MacOSPhotosBackend()
+
+    result = run_pipeline(
         conn,
         console,
         err,
@@ -123,13 +136,39 @@ def main() -> None:
         anthropic_api_key=anthropic_api_key,
         gemini_api_key=gemini_api_key,
         story=args.story,
-        style=args.style,
+        style=style,
         fresh=args.fresh,
         session_svg=args.session_svg,
+        progress=progress,
+        photos=photos,
         desc_prompt_suffix=desc_prompt_suffix,
         gen_prompt_suffix=gen_prompt_suffix,
         aspect_ratio=aspect_ratio,
     )
 
-    if args.silent and output_path:
-        print(output_path)
+    if result is None:
+        return
+
+    if args.json_output:
+        run_data = conn.execute(
+            "SELECT desc_gen_ms, img_gen_ms, generated_description, style"
+            " FROM runs WHERE id = ?",
+            (result.run_id,),
+        ).fetchone()
+        desc_ms, img_ms, description, run_style = run_data or (None, None, None, None)
+        total_s = time.monotonic() - t_start
+        print(
+            json.dumps(
+                {
+                    "output_path": result.output_path,
+                    "run_id": result.run_id,
+                    "description": description,
+                    "style": run_style,
+                    "desc_gen_ms": desc_ms,
+                    "img_gen_ms": img_ms,
+                    "total_s": round(total_s, 2),
+                },
+            ),
+        )
+    elif args.silent:
+        print(result.output_path)

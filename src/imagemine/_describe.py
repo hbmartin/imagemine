@@ -126,10 +126,17 @@ def _get_description(  # noqa: PLR0913
     model: str = DEFAULT_MODEL,
     story: str | None = None,
     prompt_suffix: str | None = None,
+    people_names: list[str] | None = None,
     log: Callable[[str], None],
     err: Callable[[str], None],
 ) -> str:
     """Return a description, freshly generated."""
+    if people_names:
+        people_str = f"Characters in the photo: {', '.join(people_names)}"
+        prompt_suffix = (
+            f"{prompt_suffix}\n\n{people_str}" if prompt_suffix else people_str
+        )
+
     avg = avg_duration_ms(conn, "desc_gen_ms")
     avg_str = f" (avg time: {avg / 1000:.1f}s)" if avg is not None else ""
     log(f"Generating storyline with Claude...{avg_str}")

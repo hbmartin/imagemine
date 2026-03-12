@@ -1,10 +1,12 @@
 import pathlib
+import sqlite3
 import subprocess
 
 import pytest
 
 from imagemine._album import (
     _add_to_photos_album,
+    _people_for_photo,
     _random_photo_from_album,
 )
 
@@ -185,3 +187,128 @@ def test_random_photo_from_album_raises_after_max_mov_attempts(monkeypatch, tmp_
 
     assert call_count == max_attempts
     assert run_calls == max_attempts
+
+
+def test_add_to_photos_album_raises_on_nonzero_return(monkeypatch):
+    monkeypatch.setattr(
+        "imagemine._album.subprocess.run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=["osascript"],
+            returncode=1,
+            stdout="",
+            stderr="album not found",
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="Photos import failed.*album not found"):
+        _add_to_photos_album("/out.png", "NoAlbum", "desc")
+
+
+def test_random_photo_from_album_raises_when_no_files_exported(monkeypatch, tmp_path):
+    def fake_mkdtemp(*_args, **_kwargs):
+        path = tmp_path / "imagemine_empty"
+        path.mkdir()
+        return str(path)
+
+    monkeypatch.setattr("imagemine._album.tempfile.mkdtemp", fake_mkdtemp)
+    monkeypatch.setattr(
+        "imagemine._album.subprocess.run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=["osascript"],
+            returncode=0,
+            stdout="photo-id",
+            stderr="",
+        ),
+    )
+    monkeypatch.setattr(
+        pathlib.Path,
+        "iterdir",
+        lambda self: iter([]),
+    )
+
+    with pytest.raises(RuntimeError, match="No photo exported from album"):
+        _random_photo_from_album("Album")
+
+
+def test_people_for_photo_returns_empty_when_db_missing(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "imagemine._album._PHOTOS_DB",
+        tmp_path / "nonexistent" / "Photos.sqlite",
+    )
+
+    result = _people_for_photo("some-uuid/version")
+
+    assert result == []
+
+
+def test_people_for_photo_returns_names_from_db(monkeypatch, tmp_path):
+    db_path = tmp_path / "Photos.sqlite"
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "CREATE TABLE ZASSET (Z_PK INTEGER PRIMARY KEY, ZUUID TEXT)",
+    )
+    conn.execute(
+        "CREATE TABLE ZPERSON (Z_PK INTEGER PRIMARY KEY, ZFULLNAME TEXT)",
+    )
+    conn.execute(
+        "CREATE TABLE ZDETECTEDFACE"
+        " (Z_PK INTEGER PRIMARY KEY, ZPERSONFORFACE INTEGER, ZASSETFORFACE INTEGER)",
+    )
+    conn.execute("INSERT INTO ZASSET (Z_PK, ZUUID) VALUES (1, 'abc-123')")
+    conn.execute("INSERT INTO ZPERSON (Z_PK, ZFULLNAME) VALUES (10, 'Alice')")
+    conn.execute("INSERT INTO ZPERSON (Z_PK, ZFULLNAME) VALUES (11, 'Bob')")
+    conn.execute(
+        "INSERT INTO ZDETECTEDFACE (Z_PK, ZPERSONFORFACE, ZASSETFORFACE)"
+        " VALUES (100, 10, 1)",
+    )
+    conn.execute(
+        "INSERT INTO ZDETECTEDFACE (Z_PK, ZPERSONFORFACE, ZASSETFORFACE)"
+        " VALUES (101, 11, 1)",
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr("imagemine._album._PHOTOS_DB", db_path)
+
+    result = _people_for_photo("abc-123/version-id")
+
+    assert sorted(result) == ["Alice", "Bob"]
+
+
+def test_people_for_photo_handles_db_error(monkeypatch, tmp_path):
+    db_path = tmp_path / "corrupt.sqlite"
+    db_path.write_bytes(b"not a database")
+
+    monkeypatch.setattr("imagemine._album._PHOTOS_DB", db_path)
+
+    result = _people_for_photo("some-uuid")
+
+    assert result == []
+
+
+def test_people_for_photo_strips_uuid_slash(monkeypatch, tmp_path):
+    db_path = tmp_path / "Photos.sqlite"
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "CREATE TABLE ZASSET (Z_PK INTEGER PRIMARY KEY, ZUUID TEXT)",
+    )
+    conn.execute(
+        "CREATE TABLE ZPERSON (Z_PK INTEGER PRIMARY KEY, ZFULLNAME TEXT)",
+    )
+    conn.execute(
+        "CREATE TABLE ZDETECTEDFACE"
+        " (Z_PK INTEGER PRIMARY KEY, ZPERSONFORFACE INTEGER, ZASSETFORFACE INTEGER)",
+    )
+    conn.execute("INSERT INTO ZASSET (Z_PK, ZUUID) VALUES (1, 'uuid-only')")
+    conn.execute("INSERT INTO ZPERSON (Z_PK, ZFULLNAME) VALUES (10, 'Charlie')")
+    conn.execute(
+        "INSERT INTO ZDETECTEDFACE (Z_PK, ZPERSONFORFACE, ZASSETFORFACE)"
+        " VALUES (100, 10, 1)",
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr("imagemine._album._PHOTOS_DB", db_path)
+
+    assert _people_for_photo("uuid-only/L0/001") == ["Charlie"]
+    assert _people_for_photo("uuid-only") == ["Charlie"]

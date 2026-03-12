@@ -6,15 +6,12 @@ import pathlib
 import shutil
 import sys
 import time
-from contextlib import contextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.text import Text
 
-from ._album import _add_to_photos_album, _random_photo_from_album
 from ._db import insert_run, update_run
 from ._describe import _get_description
 from ._display import _print_summary
@@ -24,9 +21,19 @@ from ._styles import increment_style_count, least_used_style, random_style
 
 if TYPE_CHECKING:
     import sqlite3
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable
 
     from rich.console import Console
+
+    from ._photos import PhotosBackend
+    from ._progress import ProgressReporter
+
+
+class PipelineResult(NamedTuple):
+    """Result of a pipeline run."""
+
+    output_path: str
+    run_id: int
 
 
 def _validate_input(image_path: str, err: Callable[[str], None]) -> str:
@@ -45,6 +52,7 @@ def _resolve_input(
     image_path: str | None,
     input_album: str | None,
     *,
+    photos: PhotosBackend | None,
     log: Callable[[str], None],
     err: Callable[[str], None],
 ) -> tuple[str, str | None, pathlib.Path | None, list[str]]:
@@ -52,9 +60,12 @@ def _resolve_input(
     if image_path:
         return _validate_input(image_path, err), None, None, []
     if input_album:
+        if photos is None:
+            err("No photos backend available for album support")
+            sys.exit(1)
         log(f"Picking random photo from album: {input_album}")
         try:
-            path, photo_id, export_dir, people_names = _random_photo_from_album(
+            path, photo_id, export_dir, people_names = photos.random_photo_from_album(
                 input_album,
             )
         except Exception as e:
@@ -64,27 +75,6 @@ def _resolve_input(
         return path, photo_id, export_dir, people_names
     err("Provide an image path or configure INPUT_ALBUM")
     sys.exit(1)
-
-
-@contextmanager
-def _step_progress(
-    console: Console,
-    spinner: str,
-    color: str,
-) -> Generator[Callable[[str], None]]:
-    with Progress(
-        SpinnerColumn(spinner_name=spinner),
-        TextColumn("{task.description}"),
-        TimeElapsedColumn(),
-        console=console,
-        transient=True,
-    ) as progress:
-        task = progress.add_task(f"[bold {color}]Preparing...", total=None)
-
-        def log(msg: str) -> None:
-            progress.update(task, description=f"[bold {color}]{msg}")
-
-        yield log
 
 
 def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
@@ -107,13 +97,15 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
     style: str | None,
     fresh: bool,
     session_svg: bool,
+    progress: ProgressReporter,
+    photos: PhotosBackend | None = None,
     desc_prompt_suffix: str | None = None,
     gen_prompt_suffix: str | None = None,
     aspect_ratio: str | None = None,
-) -> str | None:
+) -> PipelineResult | None:
     """Run the full resize → describe → style → generate pipeline.
 
-    Returns the output image path.
+    Returns a PipelineResult with the output path and run ID.
     """
     console.rule("[bold magenta]imagemine[/]")
 
@@ -121,6 +113,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
     input_path, input_album_photo_id, input_export_dir, people_names = _resolve_input(
         image_path,
         input_album,
+        photos=photos,
         log=lambda msg: console.print(f"  [dim]{msg}[/]"),
         err=err,
     )
@@ -141,7 +134,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
         # ── Step 3: Describe ──────────────────────────────────────────────
         console.rule("[dim]Describe[/]", style="dim")
 
-        with _step_progress(console, "moon", "cyan") as log_describe:
+        with progress.step("moon", "cyan") as log_describe:
             description = _get_description(
                 conn,
                 run_id,
@@ -151,13 +144,10 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 model=claude_model,
                 story=story,
                 prompt_suffix=desc_prompt_suffix,
+                people_names=people_names,
                 log=log_describe,
                 err=err,
             )
-
-        if people_names:
-            people_str = ", ".join(people_names)
-            description = f"{description}\n\nCharacters in the photo: {people_str}"
 
         console.print(
             Panel(
@@ -208,7 +198,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
         # ── Step 5: Generate ──────────────────────────────────────────────
         console.rule("[dim]Generate[/]", style="dim")
 
-        with _step_progress(console, "smiley", "yellow") as log_generate:
+        with progress.step("smiley", "yellow") as log_generate:
             output_path = _run_generation(
                 conn,
                 run_id,
@@ -224,9 +214,9 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
             )
 
         # ── Step 6: Add to Photos album (optional) ────────────────────────
-        if destination_album:
+        if destination_album and photos is not None:
             try:
-                _add_to_photos_album(output_path, destination_album, description)
+                photos.add_to_photos_album(output_path, destination_album, description)
             except Exception as e:
                 err(f"Failed to add to Photos album {destination_album!r}: {e}")
             else:
@@ -252,7 +242,7 @@ def run_pipeline(  # noqa: C901, PLR0912, PLR0913, PLR0915
             console.save_svg(str(svg_path), title="imagemine")
             console.print(f"  [dim]Session saved:[/] [cyan]{svg_path}[/]")
 
-        return output_path
+        return PipelineResult(output_path=output_path, run_id=run_id)
     finally:
         if resized_path is not None:
             resized_path.unlink(missing_ok=True)

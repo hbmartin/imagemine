@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 import sys
 from typing import TYPE_CHECKING
 
@@ -245,16 +246,11 @@ def _run_add_style(conn: sqlite3.Connection) -> None:
     console.print(f"\n  [green]✓[/] Style [magenta]{name.strip()}[/] saved.")
 
 
-def _run_remove_style(conn: sqlite3.Connection) -> None:  # noqa: C901
-    """Interactively select and confirm removal of one or more styles."""
-    console = Console()
-    console.print(Rule("[bold magenta]Remove style[/]"))
-
-    styles = get_all_styles(conn)
-    if not styles:
-        console.print("[dim]No styles found.[/]")
-        return
-
+def _print_numbered_styles(
+    console: Console,
+    styles: list[tuple[str, str, int, str]],
+) -> None:
+    """Print a numbered table of styles."""
     table = Table(show_lines=True, border_style="dim")
     table.add_column("#", justify="right", style="dim")
     table.add_column("Name", style="magenta")
@@ -266,6 +262,46 @@ def _run_remove_style(conn: sqlite3.Connection) -> None:  # noqa: C901
 
     console.print(table)
 
+
+def _parse_style_indices(
+    raw: str,
+    max_index: int,
+    console: Console,
+) -> list[int]:
+    """Parse comma-separated indices, deduplicate, validate range, return list."""
+    try:
+        indices = [int(s.strip()) for s in raw.split(",") if s.strip()]
+    except ValueError:
+        console.print("[bold red]Error:[/] Invalid selection — enter numbers only.")
+        sys.exit(1)
+
+    unique: list[int] = []
+    seen: set[int] = set()
+    for idx in indices:
+        if idx not in seen:
+            unique.append(idx)
+            seen.add(idx)
+
+    for idx in unique:
+        if idx < 1 or idx > max_index:
+            console.print(f"[bold red]Error:[/] {idx} is out of range.")
+            sys.exit(1)
+
+    return unique
+
+
+def _run_remove_style(conn: sqlite3.Connection) -> None:
+    """Interactively select and confirm removal of one or more styles."""
+    console = Console()
+    console.print(Rule("[bold magenta]Remove style[/]"))
+
+    styles = get_all_styles(conn)
+    if not styles:
+        console.print("[dim]No styles found.[/]")
+        return
+
+    _print_numbered_styles(console, styles)
+
     raw = Prompt.ask(
         "\n[bold]Enter number(s) to remove[/] [dim](e.g. 1 or 1,3,5)[/]",
         default="",
@@ -274,25 +310,8 @@ def _run_remove_style(conn: sqlite3.Connection) -> None:  # noqa: C901
         console.print("[dim]Cancelled.[/]")
         return
 
-    try:
-        indices = [int(s.strip()) for s in raw.split(",") if s.strip()]
-    except ValueError:
-        console.print("[bold red]Error:[/] Invalid selection — enter numbers only.")
-        sys.exit(1)
-
-    unique_indices: list[int] = []
-    seen_indices: set[int] = set()
-    for idx in indices:
-        if idx not in seen_indices:
-            unique_indices.append(idx)
-            seen_indices.add(idx)
-
-    to_remove: list[str] = []
-    for idx in unique_indices:
-        if idx < 1 or idx > len(styles):
-            console.print(f"[bold red]Error:[/] {idx} is out of range.")
-            sys.exit(1)
-        to_remove.append(styles[idx - 1][0])
+    unique_indices = _parse_style_indices(raw, len(styles), console)
+    to_remove = [styles[idx - 1][0] for idx in unique_indices]
 
     console.print("\nStyles to remove:")
     for style_name in to_remove:
@@ -311,3 +330,34 @@ def _run_remove_style(conn: sqlite3.Connection) -> None:  # noqa: C901
         remove_style(conn, style_name)
 
     console.print(f"\n  [green]✓[/] Removed {len(to_remove)} style(s).")
+
+
+def _run_choose_style(conn: sqlite3.Connection) -> tuple[str, str]:
+    """Interactively pick one or more styles; return (name, description).
+
+    When multiple styles are selected, one is chosen at random.
+    """
+    console = Console()
+    console.print(Rule("[bold magenta]Choose style[/]"))
+
+    styles = get_all_styles(conn)
+    if not styles:
+        console.print("[bold red]Error:[/] No styles found in the database.")
+        sys.exit(1)
+
+    _print_numbered_styles(console, styles)
+
+    raw = Prompt.ask(
+        "\n[bold]Enter number(s) to use[/] [dim](e.g. 1 or 1,3,5)[/]",
+        default="",
+    )
+    if not raw.strip():
+        console.print("[dim]Cancelled.[/]")
+        sys.exit(0)
+
+    unique_indices = _parse_style_indices(raw, len(styles), console)
+    candidates = [(styles[idx - 1][0], styles[idx - 1][1]) for idx in unique_indices]
+
+    chosen_name, chosen_desc = random.choice(candidates)  # noqa: S311
+    console.print(f"\n  [green]✓[/] Selected [magenta]{chosen_name}[/]")
+    return chosen_name, chosen_desc

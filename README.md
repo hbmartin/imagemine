@@ -88,12 +88,14 @@ imagemine --config
 | `--story TEXT`        | —          | Background context prepended to the Claude prompt when generating the image description             |
 | `--style PROMPT`      | —          | Use PROMPT as the style instead of a randomly selected one from the database                        |
 | `--fresh`             | off        | Pick style randomly from the least-used styles (ignored when `--style` is given)                    |
+| `--choose-style`      | off        | Interactively pick style(s) from a numbered table before running the pipeline                       |
 | `--list-styles`       | —          | Show all styles in the database as a table and exit      |
 | `--add-style`         | —          | Interactively add a new style to the database and exit   |
 | `--remove-style`      | —          | Interactively select and remove styles from the database and exit |
 | `--aspect-ratio RATIO`| DB / env / `4:3` | Aspect ratio for generated image (see [supported ratios](https://ai.google.dev/gemini-api/docs/image-generation#aspect_ratios_and_image_size), e.g. `1:1`, `3:4`, `4:3`, `9:16`, `16:9`) |
 | `--destination-album` | DB / env   | macOS Photos album to import the generated image into    |
-| `--silent`            | off        | Suppress all printed output                              |
+| `--silent`            | off        | Suppress Rich UI; only print the output file path        |
+| `--json`              | off        | Output run results as JSON (suppresses Rich UI)          |
 | `--config`            | —          | Interactively configure settings and exit                |
 | `--history`           | —          | Show recent runs as a table and exit                     |
 | `--config-path`       | `~/.imagemine.db` | Path to the SQLite database file                  |
@@ -127,8 +129,14 @@ imagemine --list-styles
 # Add a new style interactively
 imagemine --add-style
 
-# Silent mode — no output, just runs and records to DB
+# Pick style(s) interactively from a numbered table
+imagemine photo.jpg --choose-style
+
+# Silent mode — only prints the output file path
 imagemine photo.jpg --silent
+
+# JSON mode — output run results as structured JSON
+imagemine photo.jpg --json
 
 # Save an SVG of the terminal session alongside the generated image
 imagemine photo.jpg --session-svg
@@ -151,6 +159,14 @@ imagemine --config --config-path ~/work/imagemine.db
 Each run applies a randomly selected visual style from a built-in library of 35+ styles. The style name and description are appended to the image prompt sent to Gemini.
 
 Example styles: Watercolor, 8-Bit Pixel Art, Ukiyo-e Woodblock, Neon Noir, Tarot Card, Vaporwave, Glitch Art, Renaissance Painting, and more.
+
+### Choosing styles interactively
+
+```sh
+imagemine photo.jpg --choose-style
+```
+
+Displays a numbered table of all styles. Enter one number (e.g. `3`) to use that style, or a comma-separated list (e.g. `1,5,12`) to pick randomly from the selected set.
 
 ### Using a custom style prompt
 
