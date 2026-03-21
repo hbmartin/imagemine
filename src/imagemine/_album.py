@@ -82,9 +82,15 @@ def _people_for_photo(photo_uuid: str) -> list[str]:
             rows = conn.execute(_PEOPLE_QUERY, (uuid,)).fetchall()
         finally:
             conn.close()
-    except sqlite3.DatabaseError, OSError:
+    except (sqlite3.DatabaseError, OSError):
         return []
-    return [name for row in rows if (name := row[0])]
+    people_names: set[str] = set()
+    for row in rows:
+        if (name_raw := row[0]) is None:
+            continue
+        if name := name_raw.strip():
+            people_names.add(name)
+    return sorted(people_names)
 
 
 def _random_photo_from_album(
