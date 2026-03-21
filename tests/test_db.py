@@ -2,11 +2,17 @@ import pathlib
 import sqlite3
 
 from imagemine._db import (
+    _has_column,
+    add_character_mapping,
+    apply_character_mappings,
     avg_duration_ms,
+    get_all_character_mappings,
     get_config,
+    get_recent_runs,
     init_db,
     insert_run,
     lookup_description,
+    remove_character_mapping,
     set_config,
     update_run,
 )
@@ -228,6 +234,73 @@ def test_random_style_returns_name_and_description(conn) -> None:
     assert desc is not None
     assert isinstance(name, str)
     assert isinstance(desc, str)
+
+
+# ---------------------------------------------------------------------------
+# _has_column
+# ---------------------------------------------------------------------------
+
+
+def test_has_column_returns_true_for_existing_column(conn) -> None:
+    assert _has_column(conn, "runs", "input_file_path") is True
+
+
+def test_has_column_returns_false_for_missing_column(conn) -> None:
+    assert _has_column(conn, "runs", "nonexistent_column") is False
+
+
+# ---------------------------------------------------------------------------
+# character_mapping CRUD
+# ---------------------------------------------------------------------------
+
+
+def test_add_and_get_character_mappings(conn) -> None:
+    add_character_mapping(conn, "Bob", "Robert")
+    add_character_mapping(conn, "Alice", "Alicia")
+    mappings = get_all_character_mappings(conn)
+    assert mappings == [("Alice", "Alicia"), ("Bob", "Robert")]
+
+
+def test_add_character_mapping_upserts(conn) -> None:
+    add_character_mapping(conn, "Bob", "Robert")
+    add_character_mapping(conn, "Bob", "Bobby")
+    mappings = get_all_character_mappings(conn)
+    assert mappings == [("Bob", "Bobby")]
+
+
+def test_remove_character_mapping(conn) -> None:
+    add_character_mapping(conn, "Bob", "Robert")
+    add_character_mapping(conn, "Alice", "Alicia")
+    remove_character_mapping(conn, "Bob")
+    assert get_all_character_mappings(conn) == [("Alice", "Alicia")]
+
+
+def test_apply_character_mappings_replaces_known_names(conn) -> None:
+    add_character_mapping(conn, "Bob", "Robert")
+    result = apply_character_mappings(conn, ["Bob", "Unknown"])
+    assert result == ["Robert", "Unknown"]
+
+
+def test_apply_character_mappings_returns_empty_for_empty(conn) -> None:
+    result = apply_character_mappings(conn, [])
+    assert result == []
+
+
+# ---------------------------------------------------------------------------
+# get_recent_runs
+# ---------------------------------------------------------------------------
+
+
+def test_get_recent_runs_returns_empty_when_no_runs(conn) -> None:
+    assert get_recent_runs(conn) == []
+
+
+def test_get_recent_runs_returns_rows(conn) -> None:
+    run_id = insert_run(conn, "/photo.jpg")
+    update_run(conn, run_id, style="Watercolor", output_image_path="/out.png")
+    runs = get_recent_runs(conn)
+    assert len(runs) == 1
+    assert runs[0][1] == "/photo.jpg"
 
 
 def test_random_style_empty_styles_table_returns_nones() -> None:

@@ -59,3 +59,54 @@ def test_dispatch_subcommand_launchd_negative_exits() -> None:
 
     assert exc_info.value.code == 1
     assert errors == ["--launchd must be a positive integer."]
+
+
+def test_dispatch_list_character_mappings(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(
+        commands,
+        "_show_character_mappings",
+        lambda conn, console: calls.append("list"),
+    )
+    handled = commands.dispatch_subcommand(
+        _base_args(list_character_mappings=True),
+        conn="db",
+        console=object(),
+        err=lambda _msg: None,
+    )
+    assert handled is True
+    assert calls == ["list"]
+
+
+def test_dispatch_add_character_mapping(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(
+        commands,
+        "_run_add_character_mapping",
+        lambda conn: calls.append("add"),
+    )
+    handled = commands.dispatch_subcommand(
+        _base_args(add_character_mapping=True),
+        conn="db",
+        console=object(),
+        err=lambda _msg: None,
+    )
+    assert handled is True
+    assert calls == ["add"]
+
+
+def test_dispatch_remove_character_mapping(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(
+        commands,
+        "_run_remove_character_mapping",
+        lambda conn: calls.append("remove"),
+    )
+    handled = commands.dispatch_subcommand(
+        _base_args(remove_character_mapping=True),
+        conn="db",
+        console=object(),
+        err=lambda _msg: None,
+    )
+    assert handled is True
+    assert calls == ["remove"]

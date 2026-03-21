@@ -273,6 +273,7 @@ def _parse_style_indices(
     raw: str,
     max_index: int,
     console: Console,
+    item_label: str = "style",
 ) -> list[int]:
     """Parse comma-separated indices, deduplicate, validate range, return list."""
     try:
@@ -281,7 +282,9 @@ def _parse_style_indices(
         console.print("[bold red]Error:[/] Invalid selection — enter numbers only.")
         sys.exit(1)
     if not indices:
-        console.print("[yellow]Warning:[/] Enter at least one style number.")
+        console.print(
+            f"[yellow]Warning:[/] Enter at least one {item_label} number.",
+        )
         sys.exit(1)
 
     unique: list[int] = []

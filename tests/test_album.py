@@ -275,6 +275,53 @@ def test_people_for_photo_returns_names_from_db(monkeypatch, tmp_path):
     assert sorted(result) == ["Alice", "Bob"]
 
 
+def test_people_for_photo_strips_whitespace_and_skips_empty_names(
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "Photos.sqlite"
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "CREATE TABLE ZASSET (Z_PK INTEGER PRIMARY KEY, ZUUID TEXT)",
+    )
+    conn.execute(
+        "CREATE TABLE ZPERSON (Z_PK INTEGER PRIMARY KEY, ZFULLNAME TEXT)",
+    )
+    conn.execute(
+        "CREATE TABLE ZDETECTEDFACE"
+        " (Z_PK INTEGER PRIMARY KEY, ZPERSONFORFACE INTEGER, ZASSETFORFACE INTEGER)",
+    )
+    conn.execute("INSERT INTO ZASSET (Z_PK, ZUUID) VALUES (1, 'trim-test')")
+    conn.execute("INSERT INTO ZPERSON (Z_PK, ZFULLNAME) VALUES (10, '  Alice  ')")
+    conn.execute("INSERT INTO ZPERSON (Z_PK, ZFULLNAME) VALUES (11, '   ')")
+    conn.execute("INSERT INTO ZPERSON (Z_PK, ZFULLNAME) VALUES (12, 'Alice')")
+    conn.execute("INSERT INTO ZPERSON (Z_PK, ZFULLNAME) VALUES (13, 'Bob')")
+    conn.execute(
+        "INSERT INTO ZDETECTEDFACE (Z_PK, ZPERSONFORFACE, ZASSETFORFACE)"
+        " VALUES (100, 10, 1)",
+    )
+    conn.execute(
+        "INSERT INTO ZDETECTEDFACE (Z_PK, ZPERSONFORFACE, ZASSETFORFACE)"
+        " VALUES (101, 11, 1)",
+    )
+    conn.execute(
+        "INSERT INTO ZDETECTEDFACE (Z_PK, ZPERSONFORFACE, ZASSETFORFACE)"
+        " VALUES (102, 12, 1)",
+    )
+    conn.execute(
+        "INSERT INTO ZDETECTEDFACE (Z_PK, ZPERSONFORFACE, ZASSETFORFACE)"
+        " VALUES (103, 13, 1)",
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr("imagemine._album._PHOTOS_DB", db_path)
+
+    result = _people_for_photo("trim-test")
+
+    assert result == ["Alice", "Bob"]
+
+
 def test_people_for_photo_handles_db_error(monkeypatch, tmp_path):
     db_path = tmp_path / "corrupt.sqlite"
     db_path.write_bytes(b"not a database")

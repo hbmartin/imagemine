@@ -79,7 +79,12 @@ def _run_remove_character_mapping(conn: sqlite3.Connection) -> None:
         console.print("[dim]Cancelled.[/]")
         return
 
-    unique = _parse_style_indices(raw, len(mappings), console)
+    unique = _parse_style_indices(
+        raw,
+        len(mappings),
+        console,
+        item_label="mapping",
+    )
     to_remove = [mappings[idx - 1][0] for idx in unique]
 
     console.print("\nMappings to remove:")

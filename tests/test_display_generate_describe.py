@@ -100,6 +100,60 @@ def test_show_styles_formats_rows(monkeypatch) -> None:
     assert "Total: 2 styles" in rendered
 
 
+def test_show_styles_handles_none_created_at(monkeypatch) -> None:
+    console = Console(record=True)
+    styles = [
+        ("Ink", "ink wash style", 1, None),
+    ]
+
+    monkeypatch.setattr(display, "get_all_styles", lambda _conn: styles)
+
+    display._show_styles(object(), console)
+
+    rendered = console.export_text()
+    assert "Ink" in rendered
+    assert "Total: 1 styles" in rendered
+
+
+def test_show_history_handles_none_timestamps(monkeypatch) -> None:
+    console = Console(record=True, width=200)
+    runs = [
+        (None, "/tmp/photo.jpg", "Ink", "100", "200", "/tmp/out.png"),
+    ]
+
+    monkeypatch.setattr(display, "get_recent_runs", lambda _conn: runs)
+
+    display._show_history(object(), console)
+
+    rendered = console.export_text()
+    assert "\u2014" in rendered
+
+
+def test_show_character_mappings_prints_empty_state(monkeypatch) -> None:
+    console = Console(record=True)
+    monkeypatch.setattr(display, "get_all_character_mappings", lambda _conn: [])
+
+    display._show_character_mappings(object(), console)
+
+    assert "No character mappings found." in console.export_text()
+
+
+def test_show_character_mappings_formats_rows(monkeypatch) -> None:
+    console = Console(record=True)
+    mappings = [("Bob", "Robert"), ("Sue", "Susan")]
+    monkeypatch.setattr(display, "get_all_character_mappings", lambda _conn: mappings)
+
+    display._show_character_mappings(object(), console)
+
+    rendered = console.export_text()
+    assert "Character Mappings" in rendered
+    assert "Bob" in rendered
+    assert "Robert" in rendered
+    assert "Sue" in rendered
+    assert "Susan" in rendered
+    assert "Total: 2 mapping(s)" in rendered
+
+
 def test_print_summary_renders_path_source_and_timings(conn) -> None:
     console = Console(record=True)
     run_id = 1
@@ -725,3 +779,88 @@ def test_get_description_ignores_empty_people_names(monkeypatch) -> None:
     )
 
     assert describe_calls[0]["prompt_suffix"] == "keep this"
+
+
+def test_describe_image_debug_prints_prompt(monkeypatch, capsys) -> None:
+    class FakeBetaTextBlock:
+        def __init__(self, text: str) -> None:
+            self.text = text
+
+    class FakeFiles:
+        def upload(self, *, file, betas):
+            return SimpleNamespace(id="file-1")
+
+        def delete(self, file_id: str, *, betas) -> None:
+            return None
+
+    class FakeMessages:
+        def create(self, **kwargs):
+            return SimpleNamespace(content=[FakeBetaTextBlock("ok")])
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.beta = SimpleNamespace(
+                files=FakeFiles(),
+                messages=FakeMessages(),
+            )
+
+    monkeypatch.setattr(describe, "BetaTextBlock", FakeBetaTextBlock)
+    monkeypatch.setattr(
+        describe.anthropic,
+        "Anthropic",
+        lambda api_key=None: FakeClient(),
+    )
+
+    describe.describe_image(
+        Image.new("RGB", (10, 10), color="red"),
+        debug=True,
+    )
+
+    captured = capsys.readouterr()
+    assert "[DEBUG] Description prompt:" in captured.err
+
+
+def test_run_generation_debug_prints_prompt(monkeypatch, tmp_path, capsys) -> None:
+    class FakeImageGen:
+        def __init__(self, image_path: str) -> None:
+            self.image_path = image_path
+
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    output_path = output_dir / "generated.png"
+    output_path.write_bytes(b"png")
+
+    monkeypatch.setattr(generate, "ImageGen", FakeImageGen)
+    monkeypatch.setattr(generate, "avg_duration_ms", lambda _conn, _column: None)
+    monkeypatch.setattr(
+        generate,
+        "generate_image",
+        lambda *_args, **_kwargs: FakeImageGen("generated.png"),
+    )
+    monkeypatch.setattr(
+        generate,
+        "write_png_metadata",
+        lambda path, description: None,
+    )
+    monkeypatch.setattr(
+        generate,
+        "update_run",
+        lambda _conn, run_id, **kwargs: None,
+    )
+
+    generate._run_generation(
+        object(),
+        5,
+        "prompt text",
+        object(),
+        img_temp=0.8,
+        api_key="api-key",
+        output_dir=output_dir,
+        model="gemini-custom",
+        debug=True,
+        log=lambda _msg: None,
+        err=lambda _msg: None,
+    )
+
+    captured = capsys.readouterr()
+    assert "[DEBUG] Generation prompt:" in captured.err
