@@ -167,6 +167,7 @@ def main() -> None:
         selected_style_names=selected_style_names,
         fresh=args.fresh,
         session_svg=args.session_svg,
+        debug=args.debug,
         progress=progress,
         photos=photos,
         desc_prompt_suffix=desc_prompt_suffix,

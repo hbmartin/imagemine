@@ -62,6 +62,7 @@ def describe_image(  # noqa: PLR0913
     model: str = DEFAULT_MODEL,
     story: str | None = None,
     prompt_suffix: str | None = None,
+    debug: bool = False,
 ) -> str:
     client = anthropic.Anthropic(api_key=api_key)
 
@@ -80,6 +81,9 @@ def describe_image(  # noqa: PLR0913
         prompt = f"{prompt}\n\nIncorporate this information into your scene and story:\n{story}"
     if prompt_suffix:
         prompt = f"{prompt}\n\n{prompt_suffix}"
+
+    if debug:
+        print(f"[DEBUG] Description prompt:\n{prompt}", file=sys.stderr)
 
     try:
         response = client.beta.messages.create(
@@ -127,6 +131,7 @@ def _get_description(  # noqa: PLR0913
     story: str | None = None,
     prompt_suffix: str | None = None,
     people_names: list[str] | None = None,
+    debug: bool = False,
     log: Callable[[str], None],
     err: Callable[[str], None],
 ) -> str:
@@ -149,6 +154,7 @@ def _get_description(  # noqa: PLR0913
             model=model,
             story=story,
             prompt_suffix=prompt_suffix,
+            debug=debug,
         )
     except Exception as e:
         err(f"Description generation failed: {e}")

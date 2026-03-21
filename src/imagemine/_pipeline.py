@@ -12,7 +12,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.text import Text
 
-from ._db import insert_run, update_run
+from ._db import apply_character_mappings, insert_run, update_run
 from ._describe import _get_description
 from ._display import _print_summary
 from ._generate import _run_generation
@@ -109,6 +109,7 @@ def _step_describe(  # noqa: PLR0913
     story: str | None,
     desc_prompt_suffix: str | None,
     people_names: list[str],
+    debug: bool,
     progress: ProgressReporter,
     err: Callable[[str], None],
 ) -> str:
@@ -126,6 +127,7 @@ def _step_describe(  # noqa: PLR0913
             story=story,
             prompt_suffix=desc_prompt_suffix,
             people_names=people_names,
+            debug=debug,
             log=log_describe,
             err=err,
         )
@@ -205,6 +207,7 @@ def _step_generate(  # noqa: PLR0913
     output_dir: pathlib.Path,
     gemini_model: str,
     aspect_ratio: str | None,
+    debug: bool,
     progress: ProgressReporter,
     err: Callable[[str], None],
 ) -> str:
@@ -222,6 +225,7 @@ def _step_generate(  # noqa: PLR0913
             output_dir=output_dir,
             model=gemini_model,
             aspect_ratio=aspect_ratio or "4:3",
+            debug=debug,
             log=log_generate,
             err=err,
         )
@@ -269,6 +273,7 @@ def run_pipeline(  # noqa: PLR0913
     style: str | None,
     fresh: bool,
     session_svg: bool,
+    debug: bool = False,
     selected_style_names: tuple[str, ...] = (),
     progress: ProgressReporter,
     photos: PhotosBackend | None = None,
@@ -282,13 +287,21 @@ def run_pipeline(  # noqa: PLR0913
     """
     console.rule("[bold magenta]imagemine[/]")
 
+    def log(msg: str) -> None:
+        console.print(f"  [dim]{msg}[/]")
+
     input_path, input_album_photo_id, input_export_dir, people_names = _resolve_input(
         image_path,
         input_album,
         photos=photos,
-        log=lambda msg: console.print(f"  [dim]{msg}[/]"),
+        log=log,
         err=err,
     )
+    if people_names:
+        mapped = apply_character_mappings(conn, people_names)
+        if mapped != people_names:
+            log(f"Characters (mapped): {', '.join(mapped)}")
+            people_names = mapped
     resized_path: pathlib.Path | None = None
     try:
         run_id = insert_run(conn, input_path)
@@ -308,9 +321,15 @@ def run_pipeline(  # noqa: PLR0913
             story=story,
             desc_prompt_suffix=desc_prompt_suffix,
             people_names=people_names,
+            debug=debug,
             progress=progress,
             err=err,
         )
+
+        if people_names:
+            description = (
+                f"{description}\n\nCharacters in the photo: {', '.join(people_names)}"
+            )
 
         description = _step_style(
             conn,
@@ -323,6 +342,9 @@ def run_pipeline(  # noqa: PLR0913
             gen_prompt_suffix=gen_prompt_suffix,
         )
 
+        if "IMAGE:" in description:
+            description = description.split("IMAGE:", maxsplit=1)[1].strip()
+
         output_path = _step_generate(
             conn,
             console,
@@ -334,6 +356,7 @@ def run_pipeline(  # noqa: PLR0913
             output_dir=output_dir,
             gemini_model=gemini_model,
             aspect_ratio=aspect_ratio,
+            debug=debug,
             progress=progress,
             err=err,
         )

@@ -5,8 +5,12 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
+from ._character_mapping import (
+    _run_add_character_mapping,
+    _run_remove_character_mapping,
+)
 from ._config import _run_config_wizard
-from ._display import _show_history, _show_styles
+from ._display import _show_character_mappings, _show_history, _show_styles
 from ._launchd import _write_launchd_plist
 from ._styles import _run_add_style, _run_remove_style
 
@@ -18,7 +22,7 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 
-def dispatch_subcommand(  # noqa: PLR0911
+def dispatch_subcommand(  # noqa: C901, PLR0911
     args: argparse.Namespace,
     conn: sqlite3.Connection,
     console: Console,
@@ -43,6 +47,18 @@ def dispatch_subcommand(  # noqa: PLR0911
 
     if args.remove_style:
         _run_remove_style(conn)
+        return True
+
+    if args.list_character_mappings:
+        _show_character_mappings(conn, console)
+        return True
+
+    if args.add_character_mapping:
+        _run_add_character_mapping(conn)
+        return True
+
+    if args.remove_character_mapping:
+        _run_remove_character_mapping(conn)
         return True
 
     if args.launchd is not None:

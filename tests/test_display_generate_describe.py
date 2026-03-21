@@ -611,6 +611,7 @@ def test_get_description_passes_prompt_suffix(monkeypatch) -> None:
             "model": "claude-custom",
             "story": "story prompt",
             "prompt_suffix": "custom suffix",
+            "debug": False,
         },
     ]
 

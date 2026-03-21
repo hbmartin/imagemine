@@ -101,6 +101,7 @@ def test_json_output_prints_valid_json(monkeypatch, tmp_path, capsys) -> None:
         choose_style=False,
         fresh=False,
         aspect_ratio=None,
+        debug=False,
     )
 
     monkeypatch.setattr(cli, "_parse_args", lambda: args)
@@ -171,6 +172,7 @@ def test_silent_prints_only_path(monkeypatch, tmp_path, capsys) -> None:
         choose_style=False,
         fresh=False,
         aspect_ratio=None,
+        debug=False,
     )
 
     monkeypatch.setattr(cli, "_parse_args", lambda: args)
@@ -224,6 +226,7 @@ def test_choose_style_sets_style_kwarg(monkeypatch, tmp_path) -> None:
         choose_style=True,
         fresh=False,
         aspect_ratio=None,
+        debug=False,
     )
     pipeline_calls = []
 
@@ -281,6 +284,7 @@ def test_choose_style_blend_passes_all_selected_names(monkeypatch, tmp_path) -> 
         choose_style=True,
         fresh=False,
         aspect_ratio=None,
+        debug=False,
     )
     pipeline_calls = []
 
@@ -343,6 +347,7 @@ def test_cli_skips_photos_backend_without_album_options(monkeypatch, tmp_path) -
         choose_style=False,
         fresh=False,
         aspect_ratio=None,
+        debug=False,
     )
     pipeline_calls = []
 
@@ -399,6 +404,7 @@ def test_cli_constructs_photos_backend_when_album_requested(
         choose_style=False,
         fresh=False,
         aspect_ratio=None,
+        debug=False,
     )
     backend = object()
     pipeline_calls = []
@@ -451,6 +457,7 @@ def test_cli_album_support_requires_macos(monkeypatch, tmp_path) -> None:
         choose_style=False,
         fresh=False,
         aspect_ratio=None,
+        debug=False,
     )
     pipeline_calls = []
 

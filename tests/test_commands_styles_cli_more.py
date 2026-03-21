@@ -20,6 +20,9 @@ def _base_args(**overrides) -> SimpleNamespace:
         "add_style": False,
         "remove_style": False,
         "choose_style": False,
+        "list_character_mappings": False,
+        "add_character_mapping": False,
+        "remove_character_mapping": False,
         "launchd": None,
         "config_path": None,
     }
@@ -441,6 +444,7 @@ def test_cli_main_runs_pipeline_with_resolved_values(
         choose_style=False,
         fresh=True,
         aspect_ratio="16:9",
+        debug=False,
     )
     pipeline_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
     required_calls: list[tuple[str, str | None, object]] = []
@@ -555,6 +559,7 @@ def test_cli_main_err_prints_exception_when_called_during_handled_failure(
         choose_style=False,
         fresh=False,
         aspect_ratio=None,
+        debug=False,
     )
 
     monkeypatch.setattr(cli, "Console", lambda **_kwargs: fake_console)

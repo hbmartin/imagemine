@@ -290,7 +290,7 @@ examples:
     parser.add_argument(
         "--session-svg",
         action="store_true",
-        help="Save an SVG of the terminal session alongside the generated image",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--config-path",
@@ -310,6 +310,21 @@ examples:
         ),
     )
     parser.add_argument(
+        "--add-character-mapping",
+        action="store_true",
+        help="Interactively add a character name mapping and exit",
+    )
+    parser.add_argument(
+        "--remove-character-mapping",
+        action="store_true",
+        help="Interactively remove character name mapping(s) and exit",
+    )
+    parser.add_argument(
+        "--list-character-mappings",
+        action="store_true",
+        help="Show all character name mappings and exit",
+    )
+    parser.add_argument(
         "--launchd",
         nargs="?",
         const=0,
@@ -321,5 +336,10 @@ examples:
             " If MINUTES is omitted you will be prompted. Prints the launchctl"
             " command to activate the agent."
         ),
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help=argparse.SUPPRESS,
     )
     return parser.parse_args()

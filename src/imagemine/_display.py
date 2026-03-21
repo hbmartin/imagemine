@@ -10,7 +10,7 @@ from rich.bar import Bar
 from rich.panel import Panel
 from rich.table import Table
 
-from ._db import get_recent_runs
+from ._db import get_all_character_mappings, get_recent_runs
 from ._styles import get_all_styles
 
 if TYPE_CHECKING:
@@ -110,6 +110,24 @@ def _show_styles(conn: sqlite3.Connection, console: Console) -> None:
 
     console.print(table)
     console.print(f"[dim]Total: {len(styles)} styles[/]")
+
+
+def _show_character_mappings(conn: sqlite3.Connection, console: Console) -> None:
+    """Display all character name mappings as a Rich table."""
+    mappings = get_all_character_mappings(conn)
+    if not mappings:
+        console.print("[dim]No character mappings found.[/]")
+        return
+
+    table = Table(title="Character Mappings", show_lines=True, border_style="dim")
+    table.add_column("Input Name", style="cyan")
+    table.add_column("Mapped Name", style="magenta")
+
+    for input_name, mapped_name in mappings:
+        table.add_row(input_name, mapped_name)
+
+    console.print(table)
+    console.print(f"[dim]Total: {len(mappings)} mapping(s)[/]")
 
 
 def _print_summary(  # noqa: PLR0913

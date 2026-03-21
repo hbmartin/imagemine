@@ -89,6 +89,9 @@ def _base_args(tmp_path, **overrides) -> SimpleNamespace:
         "list_styles": False,
         "add_style": False,
         "remove_style": False,
+        "list_character_mappings": False,
+        "add_character_mapping": False,
+        "remove_character_mapping": False,
         "silent": False,
         "json_output": False,
         "history": False,
@@ -97,6 +100,7 @@ def _base_args(tmp_path, **overrides) -> SimpleNamespace:
         "config_path": None,
         "launchd": None,
         "aspect_ratio": None,
+        "debug": False,
     }
     values.update(overrides)
     return SimpleNamespace(**values)

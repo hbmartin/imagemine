@@ -19,6 +19,7 @@ Transform any photo into something new. imagemine uses Claude to write a surreal
 - [API keys](#api-keys)
 - [CLI flags](#cli-flags)
 - [Styles](#styles)
+- [Character Mappings](#character-mappings)
 - [Configuration](#configuration)
 - [Apple TV screensaver](#apple-tv-screensaver)
 - [Development](#development)
@@ -93,6 +94,9 @@ imagemine --config
 | `--add-style`         | —          | Interactively add a new style to the database and exit   |
 | `--remove-style`      | —          | Interactively select and remove styles from the database and exit |
 | `--aspect-ratio RATIO`| DB / env / `4:3` | Aspect ratio for generated image (see [supported ratios](https://ai.google.dev/gemini-api/docs/image-generation#aspect_ratios_and_image_size), e.g. `1:1`, `3:4`, `4:3`, `9:16`, `16:9`) |
+| `--add-character-mapping` | — | Interactively add a character name mapping and exit |
+| `--remove-character-mapping` | — | Interactively remove character name mapping(s) and exit |
+| `--list-character-mappings` | — | Show all character name mappings and exit |
 | `--destination-album` | DB / env   | macOS Photos album to import the generated image into    |
 | `--silent`            | off        | Suppress Rich UI; only print the output file path        |
 | `--json`              | off        | Output run results as JSON (suppresses Rich UI)          |
@@ -199,6 +203,32 @@ imagemine --remove-style
 ```
 
 Displays a numbered table of all styles. Enter one or more numbers (e.g. `1` or `1,3,5`), review the confirmation prompt, and confirm to delete.
+
+## Character Mappings
+
+When imagemine picks a photo from a macOS Photos album, it reads any face-detection names associated with the photo. Character mappings let you rename these before they reach the AI prompt — for example, mapping "John Smith" to "Captain America".
+
+### Adding a mapping
+
+```sh
+imagemine --add-character-mapping
+# Input name (from Photos): John Smith
+# Mapped name (for prompt): Captain America
+```
+
+### Listing mappings
+
+```sh
+imagemine --list-character-mappings
+```
+
+### Removing mappings
+
+```sh
+imagemine --remove-character-mapping
+```
+
+Displays a numbered list of mappings. Enter one or more numbers to remove, then confirm.
 
 ## Configuration
 
