@@ -13,6 +13,9 @@ def _base_args(**overrides) -> SimpleNamespace:
         "add_style": False,
         "remove_style": False,
         "choose_style": False,
+        "list_character_mappings": False,
+        "add_character_mapping": False,
+        "remove_character_mapping": False,
         "launchd": None,
         "config_path": None,
     }

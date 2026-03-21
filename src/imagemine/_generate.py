@@ -49,12 +49,15 @@ def _run_generation(  # noqa: PLR0913
     output_dir: pathlib.Path,
     model: str = DEFAULT_MODEL,
     aspect_ratio: str = "4:3",
+    debug: bool = False,
     log: Callable[[str], None],
     err: Callable[[str], None],
 ) -> str:
     """Generate image, validate output exists, update DB, return output path."""
     avg = avg_duration_ms(conn, "img_gen_ms")
     avg_str = f" (avg time: {avg / 1000:.1f}s)" if avg is not None else ""
+    if debug:
+        print(f"[DEBUG] Generation prompt:\n{description}", file=sys.stderr)
     log(f"Generating image with Gemini...{avg_str}")
     t0 = time.monotonic()
     try:

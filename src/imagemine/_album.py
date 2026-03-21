@@ -84,7 +84,7 @@ def _people_for_photo(photo_uuid: str) -> list[str]:
             conn.close()
     except sqlite3.DatabaseError, OSError:
         return []
-    return [row[0] for row in rows]
+    return [name for row in rows if (name := row[0])]
 
 
 def _random_photo_from_album(

@@ -57,6 +57,12 @@ def init_db(db_path: pathlib.Path | str) -> sqlite3.Connection:
             value TEXT NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS character_mapping (
+            input_name TEXT PRIMARY KEY,
+            mapped_name TEXT NOT NULL
+        )
+    """)
     conn.commit()
     return conn
 
@@ -117,6 +123,47 @@ def lookup_description(
         (input_file_path, model),
     ).fetchone()
     return row[0] if row else None
+
+
+def get_all_character_mappings(
+    conn: sqlite3.Connection,
+) -> list[tuple[str, str]]:
+    """Return all (input_name, mapped_name) sorted by input_name."""
+    return conn.execute(
+        "SELECT input_name, mapped_name FROM character_mapping ORDER BY input_name",
+    ).fetchall()
+
+
+def add_character_mapping(
+    conn: sqlite3.Connection,
+    input_name: str,
+    mapped_name: str,
+) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO character_mapping"
+        " (input_name, mapped_name) VALUES (?, ?)",
+        (input_name, mapped_name),
+    )
+    conn.commit()
+
+
+def remove_character_mapping(conn: sqlite3.Connection, input_name: str) -> None:
+    conn.execute(
+        "DELETE FROM character_mapping WHERE input_name = ?",
+        (input_name,),
+    )
+    conn.commit()
+
+
+def apply_character_mappings(
+    conn: sqlite3.Connection,
+    names: list[str],
+) -> list[str]:
+    """Replace names with mapped_name where a mapping exists."""
+    if not names:
+        return names
+    mappings = dict(get_all_character_mappings(conn))
+    return [mappings.get(name, name) for name in names]
 
 
 def get_recent_runs(
