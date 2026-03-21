@@ -6,6 +6,7 @@ from contextlib import AbstractContextManager, contextmanager
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.text import Text
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -24,6 +25,17 @@ class ProgressReporter(Protocol):
     ) -> AbstractContextManager[Callable[[str], None]]: ...
 
 
+class _MinSecElapsedColumn(TimeElapsedColumn):
+    """Elapsed time column that shows MM:SS instead of HH:MM:SS."""
+
+    def render(self, task) -> Text:  # noqa: ANN001
+        elapsed = task.finished_time if task.finished else task.elapsed
+        if elapsed is None:
+            return Text("-:--", style="progress.elapsed")
+        minutes, seconds = divmod(int(elapsed), 60)
+        return Text(f"{minutes}:{seconds:02d}", style="progress.elapsed")
+
+
 class RichProgressReporter:
     """Progress reporter that uses Rich spinners with elapsed timers."""
 
@@ -39,7 +51,7 @@ class RichProgressReporter:
         with Progress(
             SpinnerColumn(spinner_name=spinner),
             TextColumn("{task.description}"),
-            TimeElapsedColumn(),
+            _MinSecElapsedColumn(),
             console=self._console,
             transient=True,
         ) as progress:
