@@ -2,7 +2,6 @@
 
 [![PyPI](https://img.shields.io/pypi/v/imagemine.svg)](https://pypi.org/project/imagemine/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty)
 [![CI](https://github.com/hbmartin/imagemine/actions/workflows/ci.yml/badge.svg)](https://github.com/hbmartin/imagemine/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/hbmartin/imagemine/graph/badge.svg?token=prrlAXa92n)](https://codecov.io/gh/hbmartin/imagemine)
